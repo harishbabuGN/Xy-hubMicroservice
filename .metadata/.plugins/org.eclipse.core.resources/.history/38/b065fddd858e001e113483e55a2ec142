@@ -1,0 +1,20 @@
+package com.example.XyhubEmployee.Service.impl;
+
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.stereotype.Service;
+
+import com.example.XyhubEmployee.Entity.Employee;
+import com.example.XyhubEmployee.Repository.EmployeeRepository;
+
+@Service
+public class EmpoloyeeServiceImpl {
+	
+	@Autowired
+	EmployeeRepository employeeRepository;
+	
+	public Employee addemployee(Employee employee) throws Exception {
+		
+		return employeeRepository.save(employee);
+		
+	}
+}

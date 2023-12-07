@@ -1,0 +1,15 @@
+package com.example.XyhubAuthentication.config;
+
+import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Configuration;
+
+import com.example.XyhubAuthentication.restclient.XyHubUserClient;
+
+@Configuration
+public class RestClientConfig {
+
+    @Bean
+    public XyHubUserClient xyHubUserClient() {
+        return new XyHubUserClientImpl();
+    }
+}

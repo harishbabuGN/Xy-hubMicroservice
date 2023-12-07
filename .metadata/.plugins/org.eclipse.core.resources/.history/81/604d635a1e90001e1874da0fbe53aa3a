@@ -1,0 +1,5 @@
+package com.example.XyhubCommon.Communication;
+
+public class PushNotificationCall {
+
+}

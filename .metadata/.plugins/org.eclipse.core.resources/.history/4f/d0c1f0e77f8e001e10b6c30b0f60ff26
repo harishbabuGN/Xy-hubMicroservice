@@ -1,0 +1,13 @@
+package com.example.XyhubEmployee.Service;
+
+import org.springframework.stereotype.Service;
+
+import com.example.XyhubEmployee.Entity.Employee;
+import com.example.XyhubEmployee.apiresponses.ApiResponse;
+
+@Service
+public interface EmployeeService {
+	
+	ApiResponse addemployee(Employee employee) throws Exception;
+	
+}

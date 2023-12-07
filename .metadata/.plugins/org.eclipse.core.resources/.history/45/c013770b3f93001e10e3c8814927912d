@@ -1,0 +1,146 @@
+package com.example.XyhubEmployee.Service;
+
+import java.io.IOException;
+import java.util.List;
+import java.util.Map;
+
+import org.springframework.data.domain.Pageable;
+import org.springframework.web.multipart.MultipartFile;
+
+import com.example.XyhubCommon.enumType.UserStatus;
+import com.example.XyhubEmployee.Entity.Employee;
+import com.example.XyhubEmployee.Entity.EmployeePermission;
+import com.example.XyhubEmployee.apiresponses.ApiResponse;
+
+public interface EmployeeService  {
+	
+//	Employee addemployee(Employee employee) throws Exception;
+	ApiResponse addemployee(Employee employee) throws Exception;
+	
+	
+//	ApiResponse changeEmployeeAllPermission(EmployeePermission employeePermission);
+	
+//	ApiResponse changeEmployeePermission(String userId,String permission, boolean flag) throws Exception, SecurityException;
+//	
+//	ApiResponse getEmployeePermission(String userId) throws Exception; 
+//	
+//	ApiResponse getAllEmployeeDefaultPermissions() throws Exception;
+ 
+	ApiResponse getAllEmployee(Map<String, Object> filter, Pageable pageable) throws Exception;
+
+	ApiResponse editEmployee(String employeeId, Employee employee) throws Exception;
+
+	ApiResponse updateEmployeeStatus(String employeeID, UserStatus userstatus) throws Exception;
+	
+//	ApiResponse getAllEmpByProject(String projectid, String clientid); 
+	
+//	ApiResponse searchEmployeeNotAssignedToProject(String projectid,String clientid, String searchString); 
+	
+	ApiResponse searchInfraUser(String searchString);
+	
+	ApiResponse searchEmployee(String searchString) throws Exception; 
+	
+	ApiResponse searchInfraUsersForInfraUser(String searchString);
+
+//	ApiResponse getAllInfraUser();
+	
+//	ApiResponse getAllPermissions();
+	 
+	List<Employee> getListOfInfraUSer();
+	 
+	//List<Map> getListOfDeveloper();
+	
+	//List<Map>  getListOfDeveloperInfra();
+
+	List<Map> getListOfInfraAdmins();
+
+	ApiResponse updateEmployee(Map employeeRequest) throws Exception;
+
+	ApiResponse getAllProfile();
+
+	//ApiResponse updateProfileImage(MultipartFile file, String employeeId);
+
+//	ApiResponse createVendor(JobVendorDetails vendorDetails) throws Exception;
+
+	//ApiResponse getEmployeeDetails(Employee employeeId);
+
+
+
+	ApiResponse getAllEmployeeCurrentMonth(Pageable pageable);
+
+//	ApiResponse getJobVendorById(String vendorId);
+//	
+//	ApiResponse changeAllEmployeePermissionsToDefault();
+
+	ApiResponse getListByAccessToken();
+
+//	ApiResponse getEmployeeDetailsById(String employeeId) throws Exception;
+
+//	ApiResponse editJobVendor(String vendorId, JobVendorDetails vendorRequest) throws Exception;
+
+//	ApiResponse getJobVendorType();
+
+//	ApiResponse getEmployeeByReportingId(String reportingId) throws Exception;
+	
+	ApiResponse searchEmployeeByReportingId(String reportingId, String searchString) ;
+
+	ApiResponse getInfraEmployee(String searchString);
+
+//	ApiResponse getAllRolePermissions(String roleId);
+
+//	ApiResponse updateRolePermissions(String roleId, String modules, RoleMasterTable request) throws Exception;
+
+//	ApiResponse updateOfflineStatus(String infraUserId) throws Exception;
+
+	ApiResponse getAllEmployeeList();
+
+//	ApiResponse updateProfileImage(MultipartFile file, String userId) throws IOException;
+
+//	ApiResponse getEmployeeDetails(String employeeId) throws Exception;
+
+//	ApiResponse searchEmployeeNotAssignedToByProject(String projectid, String searchString);
+
+//	ApiResponse serachJobVendor(String vendorName) throws Exception;;
+
+//	Map<String, Object> employeeBulkUpload(MultipartFile file) throws Exception;
+
+//	ApiResponse getJobVendor(Map<String, Object> filter, Pageable pageable);
+
+	//ApiResponse updateProfileImage(MultipartFile file, String employeeId);
+	
+//	ApiResponse updateEmployeeMobileNo(String userId,String mobileNumber);
+	
+	ApiResponse getEmployeeCount() throws Exception;
+	
+	ApiResponse getHrEmployees(String searchString) throws Exception;
+	
+//	ApiResponse createEmployeeDefaultPermission(EmpDefaultPermissions empDefaultPermissions) throws Exception;
+	
+	
+//	ApiResponse editEmployeeDefaultPermission(EmpDefaultPermissions empDefaultPermissions)throws Exception;
+	
+//	ApiResponse logoutSession() throws Exception;
+//	
+//	ApiResponse getLoginHistory(String userId) throws Exception;
+//	
+//	ApiResponse getSelfLoginHistory() throws Exception;
+	
+//	ApiResponse createTechnicalVendor(JobVendorDetails vendorDetails)throws Exception;;
+	
+//    ApiResponse editTechnicalVendor(String vendorId , JobVendorDetails vendorRequest) throws Exception;
+
+//    ApiResponse getAllStationaryVendor(Pageable pageable) throws Exception;
+
+//    ApiResponse getAllTechnicalVendors(Pageable pageable) throws Exception;
+
+//	ApiResponse getAllAnniversary()throws Exception;
+
+	ApiResponse getAllTodayBirthday();
+	
+	ApiResponse searchEmployeeByTeam(String searchString) throws Exception;
+
+//	List<Employee> getNextSevenDaysBirthdays();
+
+
+	
+}

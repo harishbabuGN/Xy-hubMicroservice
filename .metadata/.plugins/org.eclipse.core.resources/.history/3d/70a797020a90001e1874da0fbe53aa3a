@@ -1,0 +1,5 @@
+package com.example.XyhubHelpdesk.basedata.Model;
+
+public class AuditModel {
+
+}

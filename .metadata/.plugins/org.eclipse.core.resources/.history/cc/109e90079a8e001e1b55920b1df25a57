@@ -1,0 +1,72 @@
+package com.example.XyhubAuthentication.security;
+
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.Map;
+import java.util.Set;
+
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.HttpStatus;
+import org.springframework.security.core.GrantedAuthority;
+import org.springframework.security.core.authority.SimpleGrantedAuthority;
+import org.springframework.security.core.userdetails.User;
+import org.springframework.security.core.userdetails.UserDetails;
+import org.springframework.security.core.userdetails.UserDetailsService;
+import org.springframework.security.core.userdetails.UsernameNotFoundException;
+import org.springframework.stereotype.Service;
+import org.springframework.web.server.ResponseStatusException;
+
+import com.example.XyhubAuthentication.Repo.UserDao;
+
+
+
+@Service
+public class JwtUserDetailsService implements UserDetailsService {
+
+	@Autowired
+	private UserDao userDao;
+
+	@Override
+	public UserDetails loadUserByUsername(String username) throws UsernameNotFoundException {
+
+		com.example.XyhubAuthentication.model.User user;
+
+		user = userDao.loadUserByUsername(username);
+
+		Set<GrantedAuthority> grantedAuthorities = new HashSet<>();
+		grantedAuthorities.add(new SimpleGrantedAuthority("ROLE_" + user.getUserRole()));
+
+		if (user.getUserStatus().equals("ACTIVE")) {
+
+			return new User(user.getUsername(), user.getPassword(), grantedAuthorities);
+		}
+
+		else {
+			return new User(user.getUsername(), user.getPassword(), false, true, true, true, grantedAuthorities);
+		}
+
+	}
+
+	public com.example.XyhubAuthentication.model.User getAppUser(String username) {
+
+		com.example.XyhubAuthentication.model.User user = userDao.loadUserByUsername(username);
+
+		if (user != null) {
+
+			if (user.getUserStatus()!=null && user.getUserStatus().equals("ACTIVE"))
+			{
+				return user;
+			}
+			else {
+				throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "user not active");
+			}
+			
+			
+		} else {
+			throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "user not found");
+		}
+
+	}
+
+}

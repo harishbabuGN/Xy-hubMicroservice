@@ -1,0 +1,11 @@
+package com.example.XyhubEmployee.Service;
+
+import com.example.XyhubEmployee.Entity.Employee;
+
+public interface EmployeeService  {
+	
+//	Employee addemployee(Employee employee) throws Exception;
+	ApiResponse addemployee(Employee employee) throws Exception;
+
+	
+}

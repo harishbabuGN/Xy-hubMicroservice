@@ -1,0 +1,5 @@
+package com.example.XyhubAuthentication.Controller;
+
+public class UserController {
+
+}

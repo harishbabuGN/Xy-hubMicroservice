@@ -1,0 +1,82 @@
+package com.example.XyhubAuthentication.Controller;
+
+
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
+import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RestController;
+
+import com.example.XyhubAuthentication.Repo.UserDao;
+import com.example.XyhubAuthentication.Response.UserResponse;
+import com.example.XyhubAuthentication.Service.UserService;
+import com.example.XyhubAuthentication.model.User;
+
+@RestController
+public class UserController {
+	
+	@Autowired
+	UserService userService;
+	
+	@Autowired
+	PasswordEncoder passwordEncoder;
+	
+	 @Autowired
+	 private UserDao userRepository;
+	 
+	 
+
+
+//	    @PostMapping("/createAdmin")
+//	    public String createUser() {
+//	        User user = userRepository.loadUserByUsername("daydrop2022@gmail.com");
+//
+//	        if (user == null) {
+//	            user = new User();
+//	            user.setUsername("daydrop2022@gmail.com");
+//	            String encodedPassword = new BCryptPasswordEncoder().encode("Xyram@2022");
+//	            user.setPassword(encodedPassword);
+//	            user.setUserRole(UserRole.DAYDROP_ADMIN);
+//	            user.setUserStatus("ACTIVE");
+//	            // Save the user to the database
+//	            userRepository.save(user);
+//	        }
+//			return "Success";
+//	    }
+//	    
+//	 @PostMapping("/createUserAdmin")
+//	 public User createUserAdmin(@RequestBody User newUser) {
+//		 
+//	     User existingUser = userRepository.loadUserByUsername(newUser.getUsername());
+//	     if (existingUser == null) {
+//	         String encodedPassword = new BCryptPasswordEncoder().encode(newUser.getPassword());
+//	         newUser.setPassword(encodedPassword);
+//	         return userRepository.save(newUser);
+//	     } else {
+//	         return null;
+//	     }
+//	 }
+	 @PostMapping("/createUserAdmin")
+	 public UserResponse createUserAdmin(@RequestBody User newUser) {
+	     User existingUser = userRepository.loadUserByUsername(newUser.getUsername());
+
+	     if (existingUser == null) {
+	         String encodedPassword = new BCryptPasswordEncoder().encode(newUser.getPassword());
+	         newUser.setPassword(encodedPassword);
+
+	         User savedUser = userRepository.save(newUser);
+
+	         // Create a simplified representation of the user without the password
+	         UserResponse userResponse = new UserResponse();
+	         userResponse.setUsername(savedUser.getUsername());
+	         userResponse.setPassword(savedUser.getPassword());
+	         
+	         return userResponse;
+	     } else {
+	         return null;
+	     }
+	 }
+
+
+}

@@ -1,0 +1,81 @@
+package com.example.XyhubCommon.constants;
+
+import java.util.Date;
+
+
+
+
+public class XyhubUserDetails extends IBaseData {
+	
+
+
+	@Column(name = "user_id")
+	private String id;
+
+	@Column(name = "username", unique = true)
+	private String username;
+
+	@Column(name = "password")
+	private String password;
+
+	@Column(name = "created_at")
+	private Date createdAt;
+
+	@Column(name = "uid")
+	private String uid;
+	
+	
+	@Column(name="name")
+	private String name;
+
+	@Enumerated(EnumType.STRING)
+	@Column(name = "userStatus")
+	private UserStatus status;
+
+	@Column(name = "accesskey")
+	private String accesskey;
+
+	@Column(name = "permissions")
+	private Integer permission;
+
+	@Column(name = "reset_password_token")
+	private String resetPasswordToken;
+	
+	@Column(name = "scope_id")
+	private String scopeId;
+	
+	@Column(name = "is_super_admin", columnDefinition = "boolean default false")
+	private boolean isSuperAdmin;
+
+	public String getOsType() {
+		return osType;
+	}
+
+	public void setOsType(String osType) {
+		this.osType = osType;
+	}
+
+	public String getDeviceId() {
+		return deviceId;
+	}
+
+	public void setDeviceId(String deviceId) {
+		this.deviceId = deviceId;
+	}
+
+	@Column(unique = true, nullable = true)
+	private String email;
+	
+	@Column(name="os_type")
+	private String osType;
+	
+	@Column(name="device_id")
+	private String deviceId;
+	
+	
+	
+	
+	
+	
+	
+

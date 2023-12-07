@@ -1,0 +1,12 @@
+
+server:
+  port: 8761
+  
+spring:
+   application:  
+      name: xyhub-discovery
+      
+eureka:
+  client:
+    registerWithEureka: true
+    fetchRegistry: false

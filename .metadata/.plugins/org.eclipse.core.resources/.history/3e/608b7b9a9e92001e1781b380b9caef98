@@ -1,0 +1,70 @@
+package com.example.XyhubEmployee.util;
+
+import java.io.IOException;
+
+import javax.servlet.FilterChain;
+import javax.servlet.ServletException;
+import javax.servlet.http.HttpServletRequest;
+import javax.servlet.http.HttpServletResponse;
+
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.stereotype.Component;
+import org.springframework.web.filter.OncePerRequestFilter;
+
+
+/**
+ * This filter will extract the user information from the request which was set
+ * in authentication-server before forwarding to the current service and update the
+ * CurrentRequestUser bean. The CurrentRequestUser will be used later for
+ * customizing API response based on userId and userRole
+ * 
+ * @see CurrentUser
+ *
+ */
+
+
+@Component
+public class UserInfoFilter extends OncePerRequestFilter{
+	
+	@Autowired
+	CurrentUser currentUser;
+
+	@Override
+	protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain filterChain)
+			throws ServletException, IOException {
+		currentUser.setFirstName(request.getHeaders(AuthorizationConstants.FIRSTNAME).hasMoreElements()
+				? request.getHeaders(AuthorizationConstants.FIRSTNAME).nextElement()
+				: null);
+		currentUser.setMiddleName(request.getHeaders(AuthorizationConstants.MIDDLENAME).hasMoreElements()
+				? request.getHeaders(AuthorizationConstants.MIDDLENAME).nextElement()
+				: null);
+		
+		currentUser.setLastName(request.getHeaders(AuthorizationConstants.LASTNAME).hasMoreElements()
+				? request.getHeaders(AuthorizationConstants.LASTNAME).nextElement()
+				: null);
+		
+		currentUser.setUsername(request.getHeaders(AuthorizationConstants.USERNAME).hasMoreElements()
+				? request.getHeaders(AuthorizationConstants.USERNAME).nextElement()
+				: null);
+		currentUser.setUserId(request.getHeaders(AuthorizationConstants.USER_ID).hasMoreElements()
+				? request.getHeaders(AuthorizationConstants.USER_ID).nextElement()
+				: null);
+		currentUser.setUserRole(request.getHeaders(AuthorizationConstants.USER_ROLE).hasMoreElements()
+				? request.getHeaders(AuthorizationConstants.USER_ROLE).nextElement()
+				: null);
+		currentUser.setScope(request.getHeaders(AuthorizationConstants.USER_SCOPE).hasMoreElements()
+				? request.getHeaders(AuthorizationConstants.USER_SCOPE).nextElement()
+				: null);
+		currentUser.setScopeId(request.getHeaders(AuthorizationConstants.SCOPE_ID).hasMoreElements()
+				? request.getHeaders(AuthorizationConstants.SCOPE_ID).nextElement()
+				: null);
+		currentUser.setIpAddress(request.getRemoteAddr());
+		logger.info(request.getRemoteAddr());
+		
+
+		logger.info(currentUser.getIpAddress());
+		filterChain.doFilter(request, response);
+		
+	}
+
+}

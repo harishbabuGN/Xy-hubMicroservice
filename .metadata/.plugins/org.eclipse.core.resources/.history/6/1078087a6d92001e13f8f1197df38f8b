@@ -1,0 +1,25 @@
+package com.example.XyhubAuthentication.Service;
+
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.stereotype.Service;
+
+import com.example.XyhubAuthentication.Repo.UserRepo;
+import com.example.XyhubAuthentication.model.User;
+
+@Service
+public class UserService {
+	
+	@Autowired
+	UserRepo userRepo;
+
+	public User addUserdetails(User user) {
+		
+		return userRepo.save(user);
+	}
+
+	public User loadusernamebyusername(String username) {
+		
+		return userRepo.loadUserByUsername(username);
+	}
+
+}

@@ -1,0 +1,5 @@
+package com.example.XyhubAuthentication.enumtype;
+
+public enum UserStatus {
+
+}

@@ -1,0 +1,13 @@
+package com.example.XyhubEmployee.Repository;
+
+import org.springframework.data.jpa.repository.JpaRepository;
+
+import com.example.XyhubEmployee.Entity.Employee;
+
+public interface EmployeeRepository extends JpaRepository<Employee, String> {
+
+
+	
+	
+
+}

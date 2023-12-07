@@ -1,0 +1,19 @@
+package com.xyram.ticketingTool.service;
+
+import org.springframework.data.domain.Pageable;
+import org.springframework.web.bind.annotation.RequestBody;
+
+import com.xyram.ticketingTool.apiresponses.ApiResponse;
+import com.xyram.ticketingTool.entity.HelpDeskTicketComments;
+
+public interface HelpDeskTicketCommentService {
+
+	ApiResponse addTicketComment(String ticketId, HelpDeskTicketComments deskTicketComments);
+
+	ApiResponse removeTicketcomment(String ticketCommentId);
+
+	ApiResponse updateTicketComments(String ticketCommentId, HelpDeskTicketComments deskTicketComments);
+
+	ApiResponse getTicketCommentsByTicketId(String ticketId, Pageable pageable);
+
+}

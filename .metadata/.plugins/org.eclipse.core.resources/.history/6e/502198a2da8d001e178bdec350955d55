@@ -1,0 +1,13 @@
+package com.example.XyhubAuthentication;
+
+import org.springframework.boot.SpringApplication;
+import org.springframework.boot.autoconfigure.SpringBootApplication;
+
+@SpringBootApplication
+public class XyhubAuthenticationApplication {
+
+	public static void main(String[] args) {
+		SpringApplication.run(XyhubAuthenticationApplication.class, args);
+	}
+
+}

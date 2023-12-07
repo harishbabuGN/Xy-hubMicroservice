@@ -1,0 +1,36 @@
+package com.xyram.ticketingTool.service;
+
+import java.util.Map;
+
+import org.springframework.data.domain.Pageable;
+
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.xyram.ticketingTool.apiresponses.ApiResponse;
+import com.xyram.ticketingTool.entity.HelpDeskTicket;
+import com.xyram.ticketingTool.enumType.HelpDeskTickectStatus;
+import com.xyram.ticketingTool.enumType.TicketStatus;
+
+public interface HelpDeskTicketService {
+
+	ApiResponse createTicket(HelpDeskTicket healpDeskTicket) throws JsonProcessingException;
+
+	ApiResponse updateTicketStatus(String ticketId, HelpDeskTickectStatus newStatus, String message);
+
+	ApiResponse updateTicket(String ticketId, HelpDeskTicket healpDeskTicket);
+
+	ApiResponse getAllTicketHistory();
+
+	ApiResponse getAllTickets(Map<String, Object> filter);
+
+	ApiResponse downloadAllTickets(Map<String, Object> filter);
+
+	ApiResponse reassignTicket(String ticketId ,String memberId);
+
+	ApiResponse getTicketByTicketId(String ticketId);
+
+	ApiResponse getTicketHistoryByTicketId(String ticketId);
+
+	ApiResponse getCountOfTicketStatus();
+
+	
+}

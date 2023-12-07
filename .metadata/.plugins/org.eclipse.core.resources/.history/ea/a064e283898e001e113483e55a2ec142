@@ -1,0 +1,22 @@
+package com.example.XyhubEmployee.Service.impl;
+
+import org.springframework.beans.factory.annotation.Autowired;
+
+import com.example.XyhubEmployee.Service.UserService;
+import com.example.XyhubEmployee.admin.model.User;
+
+
+
+public class UserServiceImpl implements UserService {
+	
+	@Autowired
+	User
+	
+	
+	@Override
+	public User loadbyusername(String username) {
+		
+		return employeeRepository.loadUserByUsername(username);
+	}
+
+}

@@ -1,0 +1,4 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<session version="1.0">
+<refactoring comment="Copy element &apos;RpmuserMgmtConfiguration.java&apos; to &apos;Xyhub-Training/src/main/java/com.example.XyhubTraining&apos;&#x0D;&#x0A;- Original project: &apos;Xyhub-Helpdesk&apos;&#x0D;&#x0A;- Destination element: &apos;Xyhub-Training/src/main/java/com.example.XyhubTraining&apos;&#x0D;&#x0A;- Original element: &apos;com.example.XyhubHelpdesk.RpmuserMgmtConfiguration.java&apos;" description="Copy compilation unit" destination="=Xyhub-Training/src\/main\/java=/optional=/true=/=/maven.pomderived=/true=/&lt;com.example.XyhubTraining" element1="/src\/main\/java=/optional=/true=/=/maven.pomderived=/true=/&lt;com.example.XyhubHelpdesk{RpmuserMgmtConfiguration.java" files="0" flags="589830" folders="0" id="org.eclipse.jdt.ui.copy" policy="org.eclipse.jdt.ui.copyResources" stamp="1701856337919" units="1" version="1.0"/>
+</session>

@@ -1,0 +1,5 @@
+package com.example.XyhubEmployee.id.generator;
+
+public class CustomIdGenerator {
+
+}

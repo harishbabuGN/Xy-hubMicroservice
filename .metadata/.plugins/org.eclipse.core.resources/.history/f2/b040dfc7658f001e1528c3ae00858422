@@ -1,0 +1,7 @@
+package com.example.XyhubHelpdesk.ServiceImpl;
+
+import com.example.XyhubHelpdesk.Service.HelpDeskIssueService;
+
+public class HelpdeskServiceImpl implements HelpDeskIssueService {
+
+}

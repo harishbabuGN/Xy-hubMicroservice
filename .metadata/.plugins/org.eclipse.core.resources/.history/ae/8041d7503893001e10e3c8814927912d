@@ -1,0 +1,583 @@
+package com.example.XyhubEmployee.Repository;
+
+import java.util.List;
+import java.util.Map;
+
+import javax.transaction.Transactional;
+
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
+import org.springframework.stereotype.Repository;
+
+import com.example.XyhubCommon.enumType.UserStatus;
+import com.example.XyhubEmployee.Entity.Employee;
+
+
+
+
+@Repository
+@Transactional
+public interface EmployeeRepository extends JpaRepository<Employee, String> {
+	
+	@Query("Select distinct new map(e.eId as id,e.email as email,e. profileUrl as profileUrl, e.userCredientials.id as userId , e.firstName as firstName,e.lastName as lastName,e.middleName as middleName ,e.designationId as designationId,e.dateOfJoin as dateOfJoin,"
+			+ "e.status as status,e.mobileNumber as mobileNumber,d.designationName as designationName,e.profileUrl as profileUrl,e.createdAt as createdAt,e.location as location,c.locationName as locationName,e.position as position,e.wings as wings,e.reportingTo as reportingTo,CONCAT(ee.firstName ,' ', ee.lastName) as ReporterName) from Employee e "
+			+ "left JOIN Employee ee ON ee.userCredientials.id = e.reportingTo  "
+			+ " left JOIN  CompanyLocation c On e.location = c.Id left JOIN  Designation d On e.designationId=d.Id where e.isSuperAdmin = :isSuperAdmin  ORDER BY e.createdAt DESC")
+	Page<Map> getAllEmployeeList(boolean isSuperAdmin, Pageable pageable);
+
+	@Query("Select distinct new map(e.eId as id,e.email as email,e. profileUrl as profileUrl, e.userCredientials.id as userId , e.firstName as firstName,e.lastName as lastName,e.middleName as middleName ,e.designationId as designationId,e.dateOfJoin as dateOfJoin,"
+			+ "e.status as status,e.mobileNumber as mobileNumber,d.designationName as designationName,e.profileUrl as profileUrl,e.createdAt as createdAt,e.location as location,c.locationName as locationName,e.position as position,e.wings as wings,e.reportingTo as reportingTo,CONCAT(ee.firstName ,' ', ee.lastName) as ReporterName) from Employee e "
+			+ "left JOIN Employee ee ON ee.userCredientials.id = e.reportingTo  "
+			+ " left JOIN  CompanyLocation c On e.location = c.Id left JOIN  Designation d On e.designationId=d.Id where e.status = 'ACTIVE' and e.isSuperAdmin = :isSuperAdmin ORDER BY e.createdAt DESC")
+	Page<Map> getAllActiveEmployeeList(boolean isSuperAdmin, Pageable pageable);
+
+	@Query("Select distinct new map(e.eId as id,e.email as email, e. profileUrl as profileUrl, e.userCredientials.id as userId , e.firstName as firstName,e.lastName as lastName,e.middleName as middleName ,e.dateOfJoin as dateOfJoin ,e.designationId as designationId, "
+			+ "e.status as status,e.mobileNumber as mobileNumber,d.designationName as designationName,e.profileUrl as profileUrl,e.createdAt as createdAt,e.location as location,e.position as position,e.wings as wings,e.reportingTo as reportingTo,CONCAT(ee.firstName ,' ', ee.lastName) as ReporterName) from Employee e "
+			+ "left JOIN Employee ee ON ee.userCredientials.id = e.reportingTo " + " left join e.wings w "
+			+ "left JOIN  Designation d On e.designationId=d.Id " + " where e.isSuperAdmin = :isSuperAdmin and "
+			+ "(:designation is null or d.Id=:designation) and "
+			+ "(:position is null or lower(e.position) like %:position%) and " + "(:wing is null or w.id=:wing) and"
+			+ "(:status is null or e.status=:status) and" + "(:searchString is null"
+			+ " or lower(e.email) like %:searchString% " + " or lower(e.firstName) like %:searchString% "
+			+ "or lower(e.middleName) like %:searchString% " + "or lower(e.lastName) like %:searchString%) "
+			+ " ORDER BY e.createdAt DESC")
+	Page<Map> getAllEmployeeListByFilter(boolean isSuperAdmin, Pageable pageable, String searchString,
+			String designation, String position, String wing, UserStatus status);
+
+	@Query("Select distinct new map(e.eId as id,e.email as email, e. profileUrl as profileUrl, e.userCredientials.id as userId , e.firstName as firstName,e.lastName as lastName,e.middleName as middleName ,e.dateOfJoin as dateOfJoin ,e.designationId as designationId, "
+			+ "e.status as status,e.mobileNumber as mobileNumber,d.designationName as designationName,e.profileUrl as profileUrl,e.createdAt as createdAt,e.location as location,e.position as position,e.wings as wings,e.reportingTo as reportingTo,CONCAT(ee.firstName ,' ', ee.lastName) as ReporterName) from Employee e "
+			+ "left JOIN Employee ee ON ee.userCredientials.id = e.reportingTo " + " left join e.wings w "
+			+ "left JOIN  Designation d On e.designationId=d.Id "
+			+ " where e.isSuperAdmin = :isSuperAdmin and e.status = 'ACTIVE' and "
+			+ "(:designation is null or d.Id=:designation) and "
+			+ "(:position is null or lower(e.position) like %:position%) and " + "(:wing is null or w.id=:wing) and"
+			+ "(:searchString is null" + " or lower(e.email) like %:searchString% "
+			+ " or lower(e.firstName) like %:searchString% " + "or lower(e.middleName) like %:searchString% "
+			+ "or lower(e.lastName) like %:searchString%) " + " ORDER BY e.createdAt DESC")
+	Page<Map> getAllActiveEmployeeListByFilter(boolean isSuperAdmin, Pageable pageable, String searchString,
+			String designation, String position, String wing);
+
+	// Select e.`employee_id` as id, e.`frist_name` as firstName, e.`last_name` as
+	// lastName
+	// from employee e left JOIN project_members p On e.`employee_id` =
+	// p.`employee_id` where e.`employee_status` = 'ACTIVE' and e.`role_id` = 'R3'
+	// and p.`project_id` = '2c9fab1f7c3eebc6017c4073c8770010'
+
+	@Query("SELECT DISTINCT NEW map(e.userCredientials.id as id, e.firstName as firstName, e.middleName as middleName, p.timesheetApprover as timesheetApprover, CONCAT(em.firstName, ' ', em.lastName) as approverName, p.isAdmin as isAdmin, e.lastName as lastName, e.status as status, e.designationId as designationId, d.designationName as designationName, p.id as memberId, p.isBillable as isBillable, p.occupancy as occupancy, pr.projectManager as projectManager, p.projectId as projectId) "
+	        + "FROM Employee e "
+	        + "LEFT JOIN ProjectMembers p ON e.userCredientials.id = p.employeeId "
+	        + "LEFT JOIN Designation d ON e.designationId = d.id "
+	        + "LEFT JOIN Employee em ON em.userCredientials.id = p.timesheetApprover "
+	        + "LEFT JOIN Projects pr ON pr.projectManager = e.userCredientials.id "
+	        + "WHERE p.status = 'ACTIVE' AND e.status = 'ACTIVE' AND p.projectId = :projectId")
+	List<Map> getAllEmpByProject(@Param("projectId") String projectId);
+
+	
+	/*
+	 * SELECT e.* FROM employees_tbl e WHERE e.id NOT IN (SELECT employee_id FROM
+	 * project_assignment_tbl WHERE project_id=1234)
+	 */
+
+//	@Query("Select distinct new map(e.eId as id, e.firstName as firstName, e.lastName as lastName) from Employee e "
+//			+ "inner join ProjectMembers p ON e.eId = p.employeeId and p.status = 'INACTIVE' and p.projectId = :projectId "
+//			+ " Where e.status = 'ACTIVE' and e.email like %:searchString% and e.roleId = 'R4' ")
+	@Query("Select distinct new map(e.eId as id, e.firstName as firstName, e.middleName as middleName,e.lastName as lastName,e.status as status, e.userCredientials.id as userId, e.profileUrl as profileUrl) from Employee e Where"
+			+ " e.status = 'ACTIVE' and e.firstName like %:searchString%  and e.userCredientials.id !=:currentUserId and  e.userCredientials.id NOT IN("
+			+ "select p.employeeId from ProjectMembers p where p.employeeId != :currentUserId and  p.status = 'ACTIVE' and p.projectId = :projectId and (e.firstName like  %:searchString%) )"
+			)
+	List<Map> searchEmployeeNotAssignedToProject(@Param("projectId") String projectId,
+			@Param("searchString") String searchString,@Param("currentUserId") String currentUserId);
+
+	/*b
+	 * @Query("Select distinct new map(e.eId as id, e.firstName as firstName, e.lastName as lastName) "
+	 * +
+	 * "from Employee e left JOIN ProjectMembers p On e.eId = p.employeeId where e.status = 'ACTIVE' and e.roleId = 'R3' "
+	 * +
+	 * "and (p.projectId != :projectId and not exists (Select 1 from ProjectMembers p1 where e.eId = p1.employeeId "
+	 * + "and p1.projectId = :projectId)) and e.email like %:searchString%")
+	 */
+	@Query("Select distinct new map(e.eId as id, e.firstName as firstName, e.lastName as lastName,e.status as status) from Employee e "
+			+ "join EmployeePermission ep on e.userCredientials.id = ep.userId"
+			+ "where (e.status = 'ACTIVE' and (e.email like %:searchString%  or e.firstName like %:searchString% or e.middleName like %:searchString% or e.lastName like %:searchString%)) and ep.tktAssign = 1 ")
+	List<Map> searchInfraUser(@Param("searchString") String searchString);
+
+	/*
+	 * @Query("Select distinct new map(e.eId as id, e.firstName as firstName, e.lastName as lastName,e.status as status) from Employee e "
+	 * +
+	 * "where e.status = 'ACTIVE' and e.roleId = 'R3' and e.userCredientials.id != :userId and (e.email like %:searchString%  or "
+	 * +
+	 * "e.firstName like %:searchString% or e.middleName like %:searchString% or e.lastName like %:searchString%)"
+	 * )
+	 */
+
+	@Query("Select distinct new map(e.eId as id, e.firstName as firstName, e.lastName as lastName,e.status as status) from Employee e "
+			+ "join EmployeePermission ep on e.userCredientials.id = ep.userId"
+			+ "where (e.status = 'ACTIVE' and e.userCredientials.id != :userId and (e.email like %:searchString%  or "
+			+ "e.firstName like %:searchString% or e.middleName like %:searchString% or e.lastName like %:searchString%))and ep.tktAdmin = 1 or ep.tktAssign = 1")
+	List<Map> searchInfraUsersForInfraUser(@Param("searchString") String searchString, @Param("userId") String userId);
+
+//	@Query("Select distinct new map(e.eId as id, e.firstName as firstName, e.lastName as lastName) from Employee e "
+//			+ "where e.status = 'ACTIVE' and e.email like %:searchString% ")
+	/*
+	 * @Query("Select new map(e.eId as id,e.email as email,e.firstName as firstName,e.lastName as lastName,e.location as location,e.middleName as middleName ,e.roleId as roleId ,e.designationId as designationId,e.dateOfJoin as dateOfJoin,"
+	 * +
+	 * "e.status as status,e.mobileNumber as mobileNumber,r.roleName as rolename,c.locationName as locationName,d.designationName as designationName,e.location as location,e.position as position,e.wings as wings,e.profileUrl as profileUrl,e.userCredientials.id as userId,e.reportingTo as reportingTo) from Employee e "
+	 * +
+	 * "left join e.wings w left JOIN Role r On e.roleId = r.Id left JOIN  Designation d On e.designationId=d.Id left JOIN  CompanyLocation c On e.location = c.id where r.Id !='R1' and (e.email like %:searchString% or e.firstName like %:searchString% or e.middleName like %:searchString% or e.lastName like %:searchString% or d.designationName like %:searchString%  or e.id like %:searchString% "
+	 * +
+	 * "  or e.mobileNumber like %:searchString%  or w.wingName like %:searchString% or e.location like %:searchString%  or e.position like %:searchString%)"
+	 * )
+	 */
+	@Query("Select new map(e.eId as id,e.email as email,e.firstName as firstName,e.lastName as lastName,e.location as location,e.middleName as middleName,e.designationId as designationId,e.dateOfJoin as dateOfJoin,"
+			+ "e.status as status,e.mobileNumber as mobileNumber,c.locationName as locationName,d.designationName as designationName,e.location as location,e.position as position,e.wings as wings,e.profileUrl as profileUrl,e.userCredientials.id as userId,e.reportingTo as reportingTo) from Employee e "
+			+ "left join e.wings w left JOIN  Designation d On e.designationId=d.Id left JOIN  CompanyLocation c On e.location = c.id where e.isSuperAdmin = false and (e.email like %:searchString% or e.firstName like %:searchString% or e.middleName like %:searchString% or e.lastName like %:searchString% or d.designationName like %:searchString%  or e.eId like %:searchString% "
+			+ "  or e.mobileNumber like %:searchString%  or w.wingName like %:searchString% or e.location like %:searchString%  or e.position like %:searchString%)")
+	List<Map> searchEmployee(String searchString);
+	
+	
+	@Query("Select new map(e.eId as id,e.email as email,e.firstName as firstName,e.lastName as lastName,e.location as location,e.middleName as middleName,e.designationId as designationId,e.dateOfJoin as dateOfJoin,"
+			+ "e.status as status,e.mobileNumber as mobileNumber,c.locationName as locationName,d.designationName as designationName,e.location as location,e.position as position,e.wings as wings,e.profileUrl as profileUrl,e.userCredientials.id as userId,e.reportingTo as reportingTo) from Employee e "
+			+ "left join e.wings w left JOIN  Designation d On e.designationId=d.Id left JOIN  CompanyLocation c On e.location = c.id where e.isSuperAdmin = false and e.reportingTo =:reportingId and (e.email like %:searchString% or e.firstName like %:searchString% or e.middleName like %:searchString% or e.lastName like %:searchString% or d.designationName like %:searchString%  or e.eId like %:searchString% "
+			+ "  or e.mobileNumber like %:searchString%  or w.wingName like %:searchString% or e.location like %:searchString%  or e.position like %:searchString%)")
+	List<Map> searchEmployees(String searchString,String reportingId);
+
+	@Query("Select new map(e.eId as id,e.email as email,e.firstName as firstName,e.lastName as lastName,e.location as location,e.middleName as middleName,e.designationId as designationId,e.dateOfJoin as dateOfJoin,"
+	        + "e.status as status,e.mobileNumber as mobileNumber,c.locationName as locationName,d.designationName as designationName,e.location as location,e.position as position,e.wings as wings,e.profileUrl as profileUrl,e.userCredientials.id as userId,e.reportingTo as reportingTo) from Employee e  "
+	        + "left join e.wings w left JOIN Designation d On e.designationId=d.Id left JOIN CompanyLocation c On e.location = c.id where e.isSuperAdmin = false and e.status = 'ACTIVE'and (e.email like %:searchString% or e.firstName like %:searchString% or e.middleName like %:searchString% or e.lastName like %:searchString% or d.designationName like %:searchString%  or e.eId like %:searchString% "
+	        + "  or e.mobileNumber like %:searchString%  or w.wingName like %:searchString% or e.location like %:searchString%  or e.position like %:searchString% or concat(e.firstName, ' ', e.lastName) like %:searchString%)")
+	List<Map> searchActiveEmployee(@Param("searchString") String searchString);
+
+	
+	@Query("Select new map(e.eId as id,e.email as email,e.firstName as firstName,e.lastName as lastName,e.location as location,e.middleName as middleName,e.designationId as designationId,e.dateOfJoin as dateOfJoin,"
+			+ "e.status as status,e.mobileNumber as mobileNumber,c.locationName as locationName,d.designationName as designationName,e.location as location,e.position as position,e.wings as wings,e.profileUrl as profileUrl,e.userCredientials.id as userId,e.reportingTo as reportingTo) from Employee e  "
+			+ "left join e.wings w left JOIN  Designation d On e.designationId=d.Id left JOIN  CompanyLocation c On e.location = c.id where e.isSuperAdmin = false and e.status = 'ACTIVE' and e.reportingTo =:reportingId and (e.email like %:searchString% or e.firstName like %:searchString% or e.middleName like %:searchString% or e.lastName like %:searchString% or d.designationName like %:searchString%  or e.eId like %:searchString% "
+			+ "  or e.mobileNumber like %:searchString%  or w.wingName like %:searchString% or e.location like %:searchString%  or e.position like %:searchString%)")
+	List<Map> searchActiveEmployees(String searchString,String reportingId);
+
+	/*
+	 * @Query(value =
+	 * "SELECT e.employee_id, e.frist_name, e.last_name,e.employee_status as status, count(e.employee_id) assigned_cnt FROM ticketdbtool.employee e "
+	 * +
+	 * "left join ticketdbtool.ticket_assignee a on e.employee_id = a.employee_id "
+	 * + "join EmployeePermission ep on e.userCredientials.id = ep.userId" +
+	 * "where ep.tktAdmin = 1 or ep.tktAssign = 1", nativeQuery = true)
+	 */
+	@Query(value = "SELECT e.employee_id, e.frist_name, e.last_name,e.employee_status as status FROM ticketdbtool.employee e " // empAdmin
+			+ "left join ticketdbtool.employee_permission a on e.user_id = a.user_id "
+			+ "where e.employee_status = 'ACTIVE' and a.tkt_assign = 1", nativeQuery = true)
+	List<Map> getAllInfraUserList();
+
+	@Query(value = "SELECT e.employee_id as employeeId, e.frist_name as firstname, e.last_name as lastname, u.uid as uid,e.employee_status as status"
+			+ " FROM employee e inner join user u on u.user_id=e.user_id  "
+			+ "join EmployeePermission ep on e.userCredientials.id = ep.userId"
+			+ "where e.employee_status = 'ACTIVE'  and ep.tktAdmin = 1 or ep.tktAssign = 1", nativeQuery = true)
+	List<Employee> getAllInfraList();
+
+	@Query(value = "SELECT e.employee_id as employeeId, e.frist_name as firstname, e.last_name as lastname, u.uid as uid,e.employee_status as status"
+			+ " FROM employee e inner join user u on u.user_id=e.user_id  "
+			+ "join EmployeePermission ep on e.userCredientials.id = ep.userId"
+			+ "where e.employee_status = 'ACTIVE'  and ep.tktAdmin = 1", nativeQuery = true)
+
+	List<Map> getAllInfraAdmins();
+
+//	@Query(value = "SELECT e.employee_id as employeeId, e.frist_name as firstname, e.last_name as lastname, u.uid as uid,e.employee_status as status"
+//			+ " FROM employee e inner join user u on u.user_id=e.user_id  "
+//			
+//			+ "where e.employee_status = 'ACTIVE'  and e.role_id = 'R4'", nativeQuery = true)
+
+//	@Query(value = "SELECT e.employee_id as employeeId, e.frist_name as firstname, e.last_name as lastname, u.uid as uid,e.employee_status as status"
+//			+ " FROM employee e inner join user u on u.user_id=e.user_id  "
+//			+ "where e.employee_status = 'ACTIVE'  and e.role_id = 'R4'", nativeQuery = true)
+//	List<Map> getListOfDeveloper();
+
+//	@Query(value = "SELECT e.employee_id as employeeId, e.frist_name as firstname, e.last_name as lastname, u.uid as uid,e.employee_status as status"
+//			+ " FROM employee e inner join user u on u.user_id=e.user_id  "
+//			+ "join EmployeePermission ep on e.userCredientials.id = ep.userId"
+//			+ "where e.employee_status = 'ACTIVE'  and e.role_id in('R2','R3')", nativeQuery = true)
+//	List<Map> getListOfDeveloperInfra();
+
+	@Query("SELECT e from Employee e where e.userCredientials.id = :userId")
+	Employee getbyUserId(String userId);
+
+	@Query("SELECT e.userCredientials.id as employeeId,count(t.status) as PendingStatusCount from Employee e\r\n"
+			+ "LEFT JOIN TimeSheet t ON t.employeeId = e.userCredientials.id "
+			+ "WHERE e.userCredientials.id =:userId and t.status = 'PENDING' "
+			+ "GROUP BY e.userCredientials.id,t.status")
+	Map<String, Object> getbyUserId1(String userId);
+	
+	@Query("SELECT e from Employee e where e.userCredientials.id = :employeeId")
+	Employee getbyUserEmpId(String employeeId);
+
+	@Query(value = "SELECT concat(e.frist_name,' ', e.last_name) as assigneeName FROM employee e WHERE e.user_id = :userId", nativeQuery = true)
+	String getEmpName(String userId);
+
+	@Query("Select new map(e.eId as employeeId,CONCAT(e.firstName ,' ', e.lastName)as name, e.userCredientials.id as userId) "
+			+ " from Employee e " + " where e.userCredientials.id=:userId")
+	Map getNameAndUserId(String userId);
+	// String userid;
+
+	@Query("SELECT DISTINCT b FROM Employee b WHERE b.userCredientials.id = :employeeId")
+	Employee getUserrByUserId(String employeeId);
+
+	/*
+	 * @Query("Select new map(e.eId as id,e.email as email,e.firstName as firstName,e.lastName as lastName,e.middleName as middleName ,e.roleId as roleId ,e.designationId as designationId,e.dateOfJoin as dateOfJoin, "
+	 * +
+	 * "e.status as status,e.mobileNumber as mobileNumber,r.roleName as rolename,d.designationName as designationName) from Employee e  "
+	 * +
+	 * "left JOIN Role r On e.roleId = r.Id left JOIN  Designation d On e.designationId=d.Id where e.userCredientials.id = :userId"
+	 * )
+	 */
+	@Query("Select new map(e.eId as id,e.email as email,e.firstName as firstName,e.lastName as lastName,e.middleName as middleName ,e.designationId as designationId,e.dateOfJoin as dateOfJoin, "
+			+ "e.status as status,e.mobileNumber as mobileNumber,d.designationName as designationName) from Employee e  "
+			+ "left JOIN  Designation d On e.designationId=d.Id where e.userCredientials.id = :userId")
+	Map getAllEmployeeUserList(String userId);
+
+	@Query("Select e.email from Employee e where e.email = :email")
+	String filterByEmail(String email);
+
+	@Query("Select e.eId from Employee e where e.eId = :empId")
+	String filterByEmpID(String empId);
+
+	/*
+	 * @Query("Select distinct new map(e.eId as id,e.email as email,e. profileUrl as profileUrl, e.userCredientials.id as userId , e.firstName as firstName,e.lastName as lastName,e.middleName as middleName ,e.roleId as roleId ,e.password as password,e.designationId as designationId,e.dateOfJoin as dateOfJoin,"
+	 * +
+	 * "e.status as status,e.mobileNumber as mobileNumber,r.roleName as rolename,d.designationName as designationName,e.profileUrl as profileUrl,e.createdAt as createdAt,e.createdBy as createdBy,e.location as location,c.locationName as locationName,e.position as position,e.wings as wings,e.reportingTo as reportingTo,CONCAT(ee.firstName ,' ', ee.lastName) as ReporterName) from Employee e "
+	 * + "left JOIN Employee ee ON ee.eId = e.reportingTo  " +
+	 * " left JOIN  CompanyLocation c On e.location = c.Id left JOIN Role r On e.roleId = r.Id left JOIN  Designation d On e.designationId=d.Id where e.id=:employeeId"
+	 * )
+	 */
+	@Query("Select distinct new map(e.eId as id,e.email as email,e. profileUrl as profileUrl, e.userCredientials.id as userId , e.firstName as firstName,e.lastName as lastName,e.middleName as middleName ,e.password as password,e.designationId as designationId,e.dateOfJoin as dateOfJoin,"
+			+ "e.status as status,e.mobileNumber as mobileNumber,d.designationName as designationName,e.profileUrl as profileUrl,e.createdAt as createdAt,e.createdBy as createdBy,e.location as location,c.locationName as locationName,e.position as position,e.wings as wings,e.reportingTo as reportingTo,CONCAT(ee.firstName ,' ', ee.lastName) as ReporterName) from Employee e "
+			+ "left JOIN Employee ee ON ee.userCredientials.id = e.reportingTo  "
+			+ " left JOIN  CompanyLocation c On e.location = c.Id  left JOIN  Designation d On e.designationId=d.Id where e.eId=:userId")
+	List<Map> getbyEmpId(String userId);
+
+	@Query("Select distinct new map(e.eId as id,e.email as email,e. profileUrl as profileUrl, e.userCredientials.id as userId , e.firstName as firstName,e.lastName as lastName,e.middleName as middleName ,e.password as password,e.designationId as designationId,e.dateOfJoin as dateOfJoin,"
+			+ "e.status as status,e.mobileNumber as mobileNumber,d.designationName as designationName,e.profileUrl as profileUrl,e.createdAt as createdAt,e.createdBy as createdBy,e.location as location,c.locationName as locationName,e.position as position,e.wings as wings,e.reportingTo as reportingTo,CONCAT(ee.firstName ,' ', ee.lastName) as ReporterName) from Employee e "
+			+ "left JOIN Employee ee ON ee.userCredientials.id = e.reportingTo "
+			+ " left JOIN  CompanyLocation c On e.location = c.Id  left JOIN  Designation d On e.designationId=d.Id"
+			+ " where e.userCredientials.id=:userId")
+	List<Map> getbyEmpByUserId(String userId);
+
+	@Query("Select new map(e.eId as id,e.email as email,e.firstName as firstName,e. profileUrl as profileUrl, e.lastName as lastName,e.middleName as middleName, e.gender as gender ,e.dateOfBirth as dateOfBirth,e.alternateMobileNo as alternateMobileNo,e.designationId as designationId,e.location as location,e.position as position,e.wings as wings,e.dateOfJoin as dateOfJoin,e.userCredientials.id as userId, "
+			+ "e.status as status,e.mobileNumber as mobileNumber,c.locationName as locationName,d.designationName as designationName,e.reportingTo as reportingTo,CONCAT(ee.firstName ,' ', ee.lastName) as ReporterName,CONCAT(ee.eId) as reporterEid,ee.profileUrl as ReporterURL,ee.email as reporterEmail,e.createdAt as createdAt,e.createdBy as createdBy) from Employee e left join Employee ee On ee.userCredientials.id = e.reportingTo  "
+			+ "left JOIN  CompanyLocation c On e.location=c.id left JOIN  Designation d On e.designationId=d.Id where e.userCredientials.id=:id")
+	Map getEmployeeBYId(String id);
+
+	@Query("SELECT e from Employee e where DATE_TRUNC('month', e.createdAt) = DATE_TRUNC('month', CURRENT_DATE)")
+	List<Map> getAllEmployeeCurrentMonth(Pageable pageable);
+
+	/*
+	 * @Query("Select new map(e.eId as id,e.email as email,e.firstName as firstName,e.profileUrl as profileUrl, e.lastName as lastName,e.middleName as middleName ,e.roleId as roleId ,e.designationId as designationId,e.location as location,e.position as position,e.wings as wings, "
+	 * +
+	 * "e.status as status,e.mobileNumber as mobileNumber,r.roleName as rolename,d.designationName as designationName,e.reportingTo as reportingTo,CONCAT(ee.firstName ,' ', ee.lastName) as ReporterName,ee.profileUrl as ReporterURL) from Employee e "
+	 * + "left join Employee ee On ee.eId = e.reportingTo " +
+	 * "left JOIN Role r On e.roleId = r.Id " +
+	 * "left JOIN Designation d On e.designationId=d.Id where e.userCredientials.id=:accessToken"
+	 * )
+	 */
+	@Query("Select new map(e.eId as id,e.email as email,e.firstName as firstName,e.profileUrl as profileUrl, e.lastName as lastName,e.middleName as middleName ,e.designationId as designationId,e.location as location,e.position as position,e.wings as wings, "
+			+ "e.status as status,e.mobileNumber as mobileNumber,d.designationName as designationName,e.reportingTo as reportingTo,CONCAT(ee.firstName ,' ', ee.lastName) as ReporterName,ee.profileUrl as ReporterURL) from Employee e "
+			+ "left join Employee ee On ee.userCredientials.id = e.reportingTo "
+			+ "left JOIN Designation d On e.designationId=d.Id where e.userCredientials.id=:accessToken")
+	Map getbyAccessToken(String accessToken);
+
+	@Query("SELECT new map(CONCAT(e.firstName ,' ', e.lastName) as ReporterName,e.eId as Id,e.email as email,e.profileUrl as profileUrl,"
+			+ "e.userCredientials.id as userId, (select count (p) from ProjectMembers p where e.userCredientials.id = p.employeeId and p.status = 'ACTIVE' and e.status = 'ACTIVE') as projectAssigned) "
+			+ "from Employee e where e.status = 'ACTIVE' and e.reportingTo = :reportingId" + " ORDER BY projectAssigned DESC")
+	List<Map> getReportingList(String reportingId);
+
+	@Query("SELECT new map(CONCAT(e.firstName ,' ', e.lastName) as ReporterName,e.eId as Id,e.profileUrl as profileUrl,e.userCredientials.id as userId) "
+			+ "from Employee e where e.reportingTo = :reportingId and (lower(e.firstName) like %:searchString% or lower(e.lastName) like %:searchString%)")
+	List<Map> searchEmployeeByReportingId(String reportingId, String searchString);
+
+	/*
+	 * @Query("Select e from Employee e " +
+	 * "left JOIN Role r On e.roleId = r.Id left JOIN Designation d On e.designationId=d.Id ORDER BY e.createdAt DESC"
+	 * )
+	 */
+	@Query("Select e from Employee e " + "left JOIN Designation d On e.designationId=d.Id ORDER BY e.createdAt DESC")
+	List<Employee> employeeListForReporting();
+	
+	
+	
+
+	/**/
+
+	/*
+	 * @Query("Select e from Employee e " +
+	 * "left JOIN Role r On e.roleId = r.Id left JOIN  Designation d On e.designationId=d.Id WHERE r.roleName = 'INFRA_USER' "
+	 * + "and e.status ='ACTIVE' and " + "(:searchString is null" +
+	 * " or lower(e.email) like %:searchString% " +
+	 * " or lower(e.firstName) like %:searchString% " +
+	 * "or lower(e.middleName) like %:searchString% " +
+	 * "or lower(e.lastName) like %:searchString%) " + "ORDER BY e.createdAt DESC")
+	 */
+	@Query("Select e from Employee e " + "left join EmployeePermission ep on e.userCredientials.id = ep.userId "
+			+ "left JOIN  Designation d On e.designationId = d.Id "
+			+ "WHERE e.status ='ACTIVE' and (ep.tktAdmin = 1 or ep.tktAssign = 1) and " + "(:searchString is null "
+			+ " or lower(e.email) like %:searchString% " + " or lower(e.firstName) like %:searchString% "
+			+ "or lower(e.middleName) like %:searchString% " + "or lower(e.lastName) like %:searchString%) "
+			+ "ORDER BY e.createdAt DESC ")
+	List<Employee> getInfraEmployee(String searchString);
+
+	/*
+	 * @Query("Select distinct new map(e.eId as id,e.userCredientials.uid as uid,e.email as email,e. profileUrl as profileUrl , e.firstName as firstName,e.lastName as lastName,e.middleName as middleName ,e.roleId as roleId ,e.designationId as designationId,"
+	 * +
+	 * "e.status as status,e.mobileNumber as mobileNumber,r.roleName as rolename,d.designationName as designationName,e.profileUrl as profileUrl,e.createdAt as createdAt,e.reportingTo as reportingTo,CONCAT(ee.firstName ,' ', ee.lastName) as ReporterName) from Employee e "
+	 * + "left JOIN Employee ee ON ee.eId = e.reportingTo " +
+	 * "left JOIN Role r On e.roleId = r.Id left JOIN  Designation d On e.designationId=d.Id ORDER BY e.createdAt DESC"
+	 * )
+	 */
+	@Query("Select distinct new map(e.eId as id,e.userCredientials.uid as uid,e.email as email,e. profileUrl as profileUrl , e.firstName as firstName,e.lastName as lastName,e.middleName as middleName ,e.designationId as designationId,"
+			+ "e.status as status,e.mobileNumber as mobileNumber,d.designationName as designationName,e.profileUrl as profileUrl,e.createdAt as createdAt,e.reportingTo as reportingTo,CONCAT(ee.firstName ,' ', ee.lastName) as ReporterName) from Employee e "
+			+ "left JOIN Employee ee ON ee.userCredientials.id = e.reportingTo "
+			+ "left JOIN  Designation d On e.designationId=d.Id ORDER BY e.createdAt DESC")
+	List<Map> getAllEmployeeListNotify();
+
+	/*
+	 * @Query("Select new map(e.eId as id,e.email as email,e.userCredientials.uid as uid,e.firstName as firstName,e. profileUrl as profileUrl, e.lastName as lastName,e.middleName as middleName ,e.roleId as roleId ,e.designationId as designationId,e.dateOfJoin as dateOfJoin,"
+	 * +
+	 * "e.status as status,e.mobileNumber as mobileNumber,r.roleName as rolename,d.designationName as designationName,e.reportingTo as reportingTo,CONCAT(ee.firstName ,' ', ee.lastName) as ReporterName,ee.profileUrl as ReporterURL) from Employee e left join Employee ee On ee.eId = e.reportingTo  "
+	 * +
+	 * "left JOIN Role r On e.roleId = r.Id left JOIN  Designation d On e.designationId=d.Id  where e.eId=:reportingTo"
+	 * )
+	 */
+	@Query("Select new map(e.eId as id,e.email as email,e.userCredientials.uid as uid,e.firstName as firstName,e. profileUrl as profileUrl, e.lastName as lastName,e.middleName as middleName ,e.designationId as designationId,e.dateOfJoin as dateOfJoin,"
+			+ "e.status as status,e.mobileNumber as mobileNumber,d.designationName as designationName,e.reportingTo as reportingTo,CONCAT(ee.firstName ,' ', ee.lastName) as ReporterName,ee.profileUrl as ReporterURL) from Employee e left join Employee ee On ee.userCredientials.id = e.reportingTo  "
+			+ "left JOIN  Designation d On e.designationId=d.Id  where e.userCredientials.id=:reportingTo")
+	List<Map> getEmployeeBYReportingToId(String reportingTo);
+
+	/*
+	 * @Query("Select new map(e.eId as id,e.email as email,e.userCredientials.uid as uid,e.firstName as firstName,e. profileUrl as profileUrl, e.lastName as lastName,e.middleName as middleName ,e.roleId as roleId ,e.designationId as designationId, "
+	 * +
+	 * "e.status as status,e.mobileNumber as mobileNumber,r.roleName as rolename,d.designationName as designationName,e.reportingTo as reportingTo,CONCAT(ee.firstName ,' ', ee.lastName) as ReporterName,ee.profileUrl as ReporterURL) from Employee e left join Employee ee On ee.eId = e.reportingTo  "
+	 * +
+	 * "JOIN Role r On e.roleId = r.Id JOIN  Designation d On e.designationId=d.Id JOIN CurrentUser c On e.eId=c.userId  where c.userId=:userId"
+	 * ) List<Map> getEmployeeBYReportingToIds(String userId);
+	 */
+	@Query(value = "select * from employee", nativeQuery = true)
+	List<Employee> getAllEmployeeNotification();
+
+//	@Query("Select e from Employee e "
+//			+ "left JOIN Role r On e.roleId = r.Id left JOIN  Designation d On e.designationId=d.Id WHERE r.roleName = 'HR_ADMIN' ORDER BY e.createdAt DESC")
+//
+//	List<Employee> getJobRelatedEmployees();
+
+//	@Query("Select distinct new map(e.eId as id,e.email as email,e. profileUrl as profileUrl,e.userCredientials.uid as uid,e.firstName as firstName,e.lastName as lastName,e.middleName as middleName ,e.roleId as roleId ,e.designationId as designationId,"
+//			+ "e.status as status,e.mobileNumber as mobileNumber,r.roleName as rolename,d.designationName as designationName,e.profileUrl as profileUrl,e.createdAt as createdAt,e.reportingTo as reportingTo,CONCAT(ee.firstName ,' ', ee.lastName) as ReporterName) from Employee e "
+//			+ "left JOIN Employee ee ON ee.eId = e.reportingTo "
+//			+ "left JOIN Role r On e.roleId = r.Id left JOIN  Designation d On e.designationId=d.Id ORDER BY e.createdAt DESC")
+	@Query("Select distinct new map(e.eId as id,e.email as email,e. profileUrl as profileUrl,e.userCredientials.uid as uid,e.firstName as firstName,e.lastName as lastName,e.middleName as middleName ,e.designationId as designationId,"
+			+ "e.status as status,e.mobileNumber as mobileNumber,d.designationName as designationName,e.profileUrl as profileUrl,e.createdAt as createdAt,e.reportingTo as reportingTo,CONCAT(ee.firstName ,' ', ee.lastName) as ReporterName) from Employee e "
+			+ "left JOIN Employee ee ON ee.userCredientials.id = e.reportingTo "
+			+ "left JOIN  Designation d On e.designationId=d.Id ORDER BY e.createdAt DESC")
+	List<Map> getAllEmployeeLists();
+
+	@Query("select new map(e.eId as id,e.userCredientials.uid as uid,e.email as email) from Employee e")
+	List<Map> getListOfALlEmployee();
+
+	/*
+	 * @Query("Select distinct new map(e.eId as id,e.email as email,e. profileUrl as profileUrl , e.firstName as firstName,e.lastName as lastName,e.middleName as middleName ,e.roleId as roleId ,e.designationId as designationId,e.dateOfJoin as dateOfJoin,"
+	 * +
+	 * "e.status as status,e.mobileNumber as mobileNumber,r.roleName as rolename,d.designationName as designationName,e.profileUrl as profileUrl,e.createdAt as createdAt,e.reportingTo as reportingTo,CONCAT(ee.firstName ,' ', ee.lastName) as ReporterName) from Employee e "
+	 * + "left JOIN Employee ee ON ee.eId = e.reportingTo " +
+	 * "left JOIN Role r On e.roleId = r.Id left JOIN  Designation d On e.designationId=d.Id ORDER BY e.createdAt DESC"
+	 * )
+	 */
+	@Query("Select distinct new map(e.eId as id,e.email as email,e. profileUrl as profileUrl , e.firstName as firstName,e.lastName as lastName,e.middleName as middleName ,e.designationId as designationId,e.dateOfJoin as dateOfJoin, e.userCredientials.id as userId, "
+			+ "e.status as status,e.mobileNumber as mobileNumber,d.designationName as designationName,e.profileUrl as profileUrl,e.createdAt as createdAt,e.reportingTo as reportingTo,CONCAT(ee.firstName,' ',ee.middleName,' ', ee.lastName) as ReporterName) from Employee e "
+			+ "left JOIN Employee ee ON ee.userCredientials.id = e.reportingTo "
+			+ "left JOIN  Designation d On e.designationId=d.Id  where e.status = 'ACTIVE' ORDER BY e.createdAt DESC")
+	List<Map> getAllEmployee();
+
+	@Query("Select distinct new map(e.eId as id,e.email as email,e. profileUrl as profileUrl , e.firstName as firstName,e.lastName as lastName,e.middleName as middleName ,e.designationId as designationId,e.dateOfJoin as dateOfJoin, e.userCredientials.id as approverId, "
+			+ "e.status as status,e.mobileNumber as mobileNumber, e.profileUrl as profileUrl,e.createdAt as createdAt,e.reportingTo as reportingTo,CONCAT(e.firstName ,' ', e.lastName) as aprooverName) from Employee e "
+			+ " left JOIN EmployeePermission ep on e.userCredientials.id=ep.userId "
+	        +" where e.status = 'ACTIVE' AND ( ep.poAdmin=true ) ORDER BY e.createdAt DESC")
+	List<Map> getAllPoApprover();
+	
+	@Query("Select distinct new map(e.eId as id,e.email as email,e. profileUrl as profileUrl , e.firstName as firstName,e.lastName as lastName,e.middleName as middleName ,e.designationId as designationId,e.dateOfJoin as dateOfJoin, e.userCredientials.id as approverId, "
+			+ "e.status as status,e.mobileNumber as mobileNumber, e.profileUrl as profileUrl,e.createdAt as createdAt,e.reportingTo as reportingTo,CONCAT(e.firstName ,' ', e.lastName) as aprooverName) from Employee e "
+			+ " left JOIN EmployeePermission ep on e.userCredientials.id=ep.userId "
+	        +" where e.status = 'ACTIVE' AND ( ep.poAdmin=true ) AND (e.firstName like %:searchString% OR e.lastName like %:searchString% OR e.middleName like %:searchString%) ORDER BY e.createdAt DESC")
+	List<Map> getAllPoApprover(String searchString);
+	
+	@Query("SELECT e from Employee e ")
+	List<Employee> getAllEmployees();
+
+	@Query("select e from Employee e  where e.userCredientials.id= :employeeId ")
+	Employee getByEmpId(String employeeId);
+
+	@Query("select e from User e  where e.id= :userId ")
+	Employee getEmployeeByUSerId(String userId);
+
+	@Query("select e from User e  where e.id= :userId ")
+	User getUserByUSerId(String userId);
+
+	@Query("SELECT e FROM User e LEFT JOIN EmployeePermission ep ON e.id = ep.userId WHERE e.id = :userId AND ep.poAdmin = true")
+	User getUserByUserIdHavingPoAdminPermission(@Param("userId") String userId);
+	
+	@Query("SELECT e from Employee e  left join JobApplication j On e.eId= j.referredEmployeeId where e.eId = :geteId")
+	Employee getEmployeeNameByScoleID(String geteId);
+
+	@Query("SELECT e from Employee e  where e.userCredientials.id = :referredEmployeeId")
+	Employee getEmployeeNameByScoleId(String referredEmployeeId);
+
+	@Query("SELECT e from Employee e ")
+	Employee getAllEmployy();
+
+	@Query("SELECT e from Employee e  left join JobApplication j On e.userCredientials=j.referredEmployeeId and  j.referredEmployeeId=:referredEmployeeId")
+	List<Employee> getRefereEmployee(String referredEmployeeId);
+
+	/*
+	 * @Query("Select e from Employee e " +
+	 * "left JOIN Role r On e.roleId = r.Id left JOIN  Designation d On e.designationId=d.Id WHERE r.roleName in( 'HR_ADMIN','TICKETINGTOOL_ADMIN') ORDER BY e.createdAt DESC"
+	 * )
+	 */
+	@Query("Select e from Employee e " + "join EmployeePermission ep on e.userCredientials.id = ep.userId "
+			+ "left JOIN  Designation d On e.designationId=d.Id WHERE (ep.jobAdmin=1 and ep.tktAdmin = 1) ORDER BY e.createdAt DESC")
+	List<Employee> getVendorNotification();
+
+	@Query("Select e from Employee e  left join Ticket t On e.userCredientials.id=t.createdBy where t.createdBy=:createdBy")
+	List<Employee> getCreatedBy(String createdBy);
+
+	@Query("Select e from Employee e  left join TicketAssignee t On e.eId=t.employeeId where t.employeeId=:employeeId")
+	Employee getAssigneeNotify(String employeeId);
+
+	@Query("Select e from Employee e  left join TicketAssignee t On e.eId=t.employeeId where t.employeeId=:employeeId")
+	Employee getAssigneeNotification(String employeeId);
+
+	@Query("select e from Employee e left join User u On e.userCredientials.id=u.id where e.eId= :geteId ")
+	Employee getByEmpIdss(String geteId);
+
+	@Query("select e from Employee e left join User u On e.userCredientials.id=u.id where e.eId= :userId ")
+	Employee getByEmpIdssss(String userId);
+
+	@Query("select e from Employee e where e.firstName = :firstName")
+	Employee getByEmpName(String firstName);
+
+	@Query("select distinct (CONCAT(e.firstName ,' ', e.lastName)) from Asset a "
+			+ "left join AssetEmployee b on b.assetId = a.assetId AND b.assetEmployeeStatus != 'INACTIVE' "
+			+ "left join Employee e on e.eId = b.empId where a.assetId =:assetId")
+	String getEmpNameById(String assetId);
+
+	@Query("select e from Employee e where e.userCredientials.id =:eId")
+	Employee getByEmpIdE(String eId);
+
+	@Query(value = "select * from employee where user_id=:userId", nativeQuery = true)
+	Employee getEmpByUserId(String userId);
+
+	@Query("Select distinct e from Employee e where e.userCredientials.id =:eId")
+	Employee getEmployeeId(String eId);
+
+	@Query("select e from Employee e where e.userCredientials.id =:userId and  e.status = 'ACTIVE'")
+	Employee isEmployeeActive(String userId);
+
+	@Query("Select count(e) from Employee e where e.isSuperAdmin = false and e.status = 'ACTIVE'")
+	long activeEmployeeCount();
+
+	@Query("Select count(e) from Employee e where e.isSuperAdmin = false")
+	long allEmployeeCount();
+
+	@Query("Select new map(e.eId as id,e.email as email,e.firstName as firstName,e.lastName as lastName,e.location as location,e.middleName as middleName,e.designationId as designationId,e.dateOfJoin as dateOfJoin,"
+			+ "e.status as status,e.mobileNumber as mobileNumber,c.locationName as locationName,d.designationName as designationName,e.location as location,e.position as position,e.wings as wings,e.profileUrl as profileUrl,e.userCredientials.id as userId,e.reportingTo as reportingTo) from Employee e "
+			+ "left join e.wings w left JOIN EmployeePermission ep on e.userCredientials.id=ep.userId left JOIN Designation d On e.designationId=d.Id left JOIN  CompanyLocation c On e.location = c.id where e.isSuperAdmin = false and ep.hrCalScheduleAdd=1 and (e.email like %:searchString% or e.firstName like %:searchString% or e.middleName like %:searchString% or e.lastName like %:searchString% or d.designationName like %:searchString%  or e.id like %:searchString% "
+			+ "  or e.mobileNumber like %:searchString%  or w.wingName like %:searchString% or e.location like %:searchString%  or e.position like %:searchString%)")
+	List<Map> getHrEmployee(String searchString);
+
+//	
+//	@Query(value= "select  concat(e.frist_name,' ', e.last_name) as employeeName  "
+//			+ "FROM employee e "
+//			+ "WHERE "
+//			+ " EXTRACT(MONTH FROM e.date_of_join) = EXTRACT(MONTH FROM CURRENT_DATE + INTERVAL 30 DAY) "
+//			+ "AND EXTRACT(DAY FROM e.date_of_join) = EXTRACT(DAY FROM CURRENT_DATE + INTERVAL 30 DAY)  ",nativeQuery = true )
+
+	@Query(value = "select DATE_ADD(e.date_of_join, " + "                INTERVAL YEAR(CURDATE())-YEAR(e.date_of_join) "
+			+ "                         + IF(DAYOFYEAR(CURDATE()) > DAYOFYEAR(e.date_of_join),1,0) "
+			+ "                YEAR )  as workAnniversary, "
+			+ " YEAR(CURDATE())-YEAR(e.date_of_join)as NoOfWorkAnniversary, "
+			+ "e.date_of_join as dateOfJoin, (concat(e.frist_name,' ', e.last_name)) as employeeName from employee e "
+			+ "WHERE  e.Employee_status ='ACTIVE' and DATE_ADD(e.date_of_join, " + " INTERVAL YEAR(CURDATE())-YEAR(e.date_of_join)"
+			+ " + IF(DAYOFYEAR(CURDATE()) > DAYOFYEAR(e.date_of_join),1,0) " + "YEAR) "
+			+ "BETWEEN CURDATE() AND DATE_ADD(CURDATE(), INTERVAL 30 DAY) ORDER BY workAnniversary ", nativeQuery = true)
+	List<Map> getLastThirtyDaysAnniversary();
+
+	 @Query(value = "SELECT DATE_ADD(e.date_of_join, INTERVAL YEAR(CURDATE()) - YEAR(e.date_of_join) "
+	            + "+ IF(DAYOFYEAR(CURDATE()) > DAYOFYEAR(e.date_of_join), 1, 0) YEAR) AS workAnniversary, "
+	            + "YEAR(CURDATE()) - YEAR(e.date_of_join) AS NoOfWorkAnniversary, "
+	            + "e.date_of_join AS dateOfJoin, CONCAT(e.frist_name, ' ', e.last_name) AS employeeName "
+	            + "FROM employee e "
+	            + "WHERE e.Employee_status = 'ACTIVE' "
+	            + "AND DATE_ADD(e.date_of_join, INTERVAL YEAR(CURDATE()) - YEAR(e.date_of_join) "
+	            + "+ IF(DAYOFYEAR(CURDATE()) > DAYOFYEAR(e.date_of_join), 1, 0) YEAR) "
+	            + "BETWEEN CURDATE() + INTERVAL 1 DAY AND DATE_ADD(CURDATE(), INTERVAL 7 DAY) "
+	            + "ORDER BY workAnniversary",
+	            nativeQuery = true)
+	List<Map> getNextSevenDaysAnniversary();
+
+	@Query(value = "SELECT CONCAT(e.frist_name, ' ', e.last_name) AS employeeName, "
+			+ "DATE_FORMAT(e.date_of_join, '%Y-%m-%d') AS dateOfJoin," 
+			+ "DATE_FORMAT(CONCAT(YEAR(CURDATE()), '-', MONTH(e.date_of_join), '-', DAY(e.date_of_join)), '%Y-%m-%d') AS workAnniversary, "
+			+ "YEAR(CURDATE()) - YEAR(e.date_of_join) AS NoOfWorkAnniversary  "
+			+ "FROM employee e "
+			+ "WHERE e.employee_status = 'ACTIVE' "
+			+ "AND DATE_FORMAT(CONCAT(YEAR(CURDATE()), '-', MONTH(e.date_of_join), '-', DAY(e.date_of_join)), '%Y-%m-%d') = CURDATE() "
+			+"ORDER BY workAnniversary", nativeQuery = true)
+	List<Map> anniversaryListToday();
+
+	
+	
+	
+//	@Query(value = "select DATE_ADD(e.date_of_birth, " + "INTERVAL YEAR(CURDATE())-YEAR(e.date_of_birth) "
+//			+ "                         + IF(DAYOFYEAR(CURDATE()) > DAYOFYEAR(e.date_of_birth),1,0) "
+//			+ "                YEAR )  as Birthday, "
+//			+ "e.date_of_birth as dateOfBirth, (concat(e.frist_name,' ', e.last_name)) as employeeName from employee e "
+//			+ "WHERE e.Employee_status ='ACTIVE' and DATE_ADD(e.date_of_birth, " + "               INTERVAL YEAR(CURDATE())-YEAR(e.date_of_birth) "
+//			+ "                        + IF(DAYOFYEAR(CURDATE()) > DAYOFYEAR(e.date_of_birth),1,0) "
+//			+ "               YEAR) = CURDATE()  ORDER BY Birthday", nativeQuery = true)	
+//	List<Map> getTodayBirthdays();
+
+	@Query(value ="SELECT CONCAT(e.frist_name, ' ', e.last_name) as employeeName, e.date_of_birth as dateOfBirth, (DATE_FORMAT(e.date_of_birth, '%m-%d') = DATE_FORMAT(CURDATE(), '%m-%d')) as Birthday"
+		    + " FROM employee e"
+		    + " WHERE e.employee_status = 'ACTIVE'"
+		    + " AND DATE_FORMAT(e.date_of_birth, '%m-%d') = DATE_FORMAT(CURDATE(), '%m-%d')", nativeQuery = true)
+	List<Map> getTodayBirthdays();
+
+
+	@Query(value = "SELECT e.* FROM employee e LEFT JOIN employee_permission ep ON e.user_id = ep.user_id WHERE ep.stationery_view_all= true ", nativeQuery = true)
+	List<Employee> getUsersWithPermission();
+
+	/*
+	 * @Query("Select new map(e.eId as id,e.email as email,e.firstName as firstName,e.lastName as lastName,e.middleName as middleName ,e.roleId as roleId ,e.designationId as designationId, "
+	 * +
+	 * "e.status as status,e.mobileNumber as mobileNumber,r.roleName as rolename,d.designationName as designationName) from Employee e  "
+	 * +
+	 * "JOIN Role r On e.roleId = r.Id JOIN  Designation d On e.designationId=d.Id where e.eId= :userId"
+	 * )
+	 */
+
+	/*
+	 * @Query("Select new map(c.eID as userId) from  Employee c JOIN CurrentUser e on c.eId=e.userId where c.userId=:userId"
+	 * ) List<Map> getAllEmployeeUserUidList(String userId);
+	 */
+	@Query("Select  e from Employee e where e.userCredientials.id =:employeeId")
+	Employee getEmployeeById(String employeeId);
+	
+	@Query(value = "select * from employee where user_id=:userId", nativeQuery = true)
+	List<Map<String,Object>> getEmployeeByUserId(String userId);
+	
+	@Query(value = "SELECT  e.date_of_birth as dateOfBirth, CONCAT(e.frist_name, ' ', e.last_name) as employeeName, e.email as email " +
+            "FROM employee e " +
+            "WHERE DATE_FORMAT(e.date_of_birth, '%m-%d') BETWEEN DATE_FORMAT(CURDATE() + INTERVAL 1 DAY, '%m-%d') AND DATE_FORMAT(CURDATE() + INTERVAL 7 DAY, '%m-%d')", 
+       nativeQuery = true)
+    List<Map> findEmployeesByBirthdayRange(LocalDate currentDate, LocalDate endDate);
+
+	
+	
+	
+
+}

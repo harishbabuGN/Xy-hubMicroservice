@@ -1,0 +1,9 @@
+package com.example.XyhubEmployee.Service;
+
+import com.example.XyhubEmployee.admin.model.XyhubUserDetails;
+
+public interface UserService  {
+
+	XyhubUserDetails loadbyusername(String username);
+	
+}

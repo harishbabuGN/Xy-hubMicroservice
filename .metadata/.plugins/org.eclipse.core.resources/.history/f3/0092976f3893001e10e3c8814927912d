@@ -1,0 +1,2543 @@
+package com.example.XyhubEmployee.Service.impl;
+
+import java.text.DateFormat;
+import java.text.ParseException;
+import java.text.SimpleDateFormat;
+import java.util.Date;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.UUID;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.data.domain.Pageable;
+import org.springframework.http.HttpStatus;
+import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
+import org.springframework.stereotype.Service;
+import org.springframework.web.server.ResponseStatusException;
+
+import com.example.XyhubCommon.Communication.PushNotificationCall;
+import com.example.XyhubCommon.Communication.PushNotificationRequest;
+import com.example.XyhubCommon.Component.CurrentUser;
+import com.example.XyhubCommon.Config.PermissionConfig;
+import com.example.XyhubCommon.Util.ResponseMessages;
+import com.example.XyhubCommon.enumType.NotificationType;
+import com.example.XyhubEmployee.Entity.CompanyLocation;
+import com.example.XyhubEmployee.Entity.CompanyWings;
+import com.example.XyhubEmployee.Entity.Designation;
+import com.example.XyhubEmployee.Entity.Employee;
+import com.example.XyhubEmployee.Entity.EmployeePermission;
+import com.example.XyhubEmployee.Entity.Notifications;
+import com.example.XyhubEmployee.Entity.UserPermissions;
+import com.example.XyhubEmployee.Repository.CompanyLocationRepository;
+import com.example.XyhubEmployee.Repository.CompanyWingsRepository;
+import com.example.XyhubEmployee.Repository.DesignationRepository;
+import com.example.XyhubEmployee.Repository.EmployeePermissionRepository;
+import com.example.XyhubEmployee.Repository.EmployeeRepository;
+import com.example.XyhubEmployee.Repository.UserPermissionRepository;
+import com.example.XyhubEmployee.Repository.UserRepository;
+import com.example.XyhubEmployee.Service.EmployeeService;
+import com.example.XyhubEmployee.Service.NotificationService;
+//import com.example.XyhubEmployee.admin.model.CurrentUser;
+import com.example.XyhubEmployee.admin.model.User;
+import com.example.XyhubEmployee.apiresponses.ApiResponse;
+import com.example.XyhubEmployee.config.EmployeePermissionConfig;
+import com.example.XyhubEmployee.email.EmailService;
+import com.example.XyhubEmployee.enumType.UserStatus;
+import com.example.XyhubEmployee.util.DateUtils;
+import com.example.XyhubEmployee.util.EmployeeUtil;
+
+@Service
+public class EmpoloyeeServiceImpl implements EmployeeService {
+
+	private static final Logger logger = LoggerFactory.getLogger(EmpoloyeeServiceImpl.class);
+
+	@Autowired
+	EmployeeRepository employeeRepository;
+	
+	@Autowired
+	CompanyLocationRepository companyLocationRepository;
+	
+	@Autowired
+	EmployeePermissionConfig empPerConfig;
+	
+	
+	@Autowired
+	DesignationRepository designationRepository;
+	
+	@Autowired
+	CurrentUser currentUser;
+	
+	@Autowired
+	UserRepository userRepository;
+	
+	@Autowired
+	CurrentUser userDetail;
+	
+	@Autowired
+	PermissionConfig permissionConfig;
+	
+	@Autowired
+	PushNotificationCall pushNotificationCall;
+	
+	@Autowired
+	PushNotificationRequest pushNotificationRequest;
+	
+	@Autowired
+	NotificationService notificationService;
+	
+	
+	@Autowired
+	CompanyWingsRepository wingRepo;
+	
+//	@Value("${APPLICATION_URL}")
+//	private String application_url;
+//
+//	@Value("${image-base-url}")
+//	private String ticketAttachmentBaseUrl;
+	
+	@Autowired
+	UserPermissionRepository userPermissionConfig;
+	
+	@Autowired
+	EmployeePermissionRepository empPermissionRepo;
+	
+
+	@Autowired
+	EmailService emailService;
+	
+
+	@SuppressWarnings("unused")
+	@Override
+	public ApiResponse addemployee(Employee employee) throws Exception {
+
+		ApiResponse response = new ApiResponse(false);
+
+//		if (!empPerConfig.isHavingpersmission("empAdmin")) {
+//			response.setSuccess(false);
+//			response.setMessage("Not authorised to create employee");
+//			return response;
+//		}
+
+		response = validateEmployee(employee);
+
+//		if (response.getMessage() != null && response.getMessage() != "") {
+//			return response;
+//		}
+		// Email Validation starts here
+
+		if (employee.getEmail() == null || employee.getEmail().equals("")) {
+			response.setSuccess(false);
+			response.setMessage(ResponseMessages.MAILID_MAN);
+			return response;
+		}
+		if (!emailValidation(employee.getEmail())) {
+			response.setSuccess(false);
+			response.setMessage(ResponseMessages.INVAL_MAIL_ID);
+			return response;
+		}
+
+		String email = employeeRepository.filterByEmail(employee.getEmail());
+		if (email != null) {
+			response.setSuccess(false);
+			response.setMessage(ResponseMessages.MAIL_ID_EXI);
+			return response;
+		}
+
+		String userId = userRepository.getUserId(employee.getEmail());
+		if (userId != null) {
+			response.setSuccess(false);
+			response.setMessage(ResponseMessages.MAIL_ID_EXI);
+			return response;
+		}
+
+		System.out.println("username::" + currentUser.getName());
+
+//		ApiResponse salaryResponse = validateEmployeeSalary(employee);
+//		
+//		if (salaryResponse.getMessage() != null && salaryResponse.getMessage() != "") {
+//			return salaryResponse;
+//		}
+
+//		if (response.isSuccess()) {
+		try {
+
+			if (!employeeRepository.getbyEmpId(employee.geteId()).isEmpty()) {
+
+				response.setSuccess(false);
+				response.setMessage(ResponseMessages.EMP_CODE);
+				return response;
+			}
+
+			User user = new User();
+			user.setUsername(employee.getEmail());
+			String encodedPassword = new BCryptPasswordEncoder().encode(employee.getPassword());
+			user.setPassword(encodedPassword);
+
+			employee.setFirstName(employee.getFirstName().trim());
+			String name = employee.getFirstName();
+			String firstLetter = name.substring(0, 1);
+			String remainingLetters = name.substring(1, name.length());
+			firstLetter = firstLetter.toUpperCase();
+			employee.setFirstName(firstLetter + remainingLetters);
+
+			user.setName(employee.getFirstName() + " " + employee.getLastName());
+
+			// Employee employeere=new Employee();
+//				Role role = roleRepository.getById(employee.getRoleId());
+//				user.setUserRole(role != null ? role.getRoleName() : null);
+
+			Integer permission = permissionConfig.setDefaultPermissions("INFRA_ADMIN");
+			user.setPermission(permission);
+			user.setStatus(UserStatus.ACTIVE);
+			//System.out.println(user.getEmail() + "::" + user.getUsername() + "::" + user.getCreatedAt());
+			User newUser = userRepository.save(user);
+			UserPermissions permissions = new UserPermissions();
+			permissions.setEmpModPermission(permissionConfig.getEMPLOYEES_PERMISSION());
+			permissions.setProjectModPermission(permissionConfig.getPROJECTS_PERMISSION());
+			permissions.setTicketModPermission(permissionConfig.getTICKETS_PERMISSION());
+			permissions.setJobOpeningModPermission(permissionConfig.getJOBOPENINGS_PERMISSION());
+			permissions.setJobInterviewsModPermission(permissionConfig.getJOBINTERVIEWS_PERMISSION());
+			permissions.setJobAppModPermission(permissionConfig.getJOBAPPLICATIONS_PERMISSION());
+			permissions.setJobOfferModPermission(permissionConfig.getJOBOFFERS_PERMISSION());
+			permissions.setJobVendorsModPermission(permissionConfig.getJOBVENDORS_PERMISSION());
+			permissions.setUserId(newUser.getId());
+			userPermissionConfig.save(permissions);
+			employee.setCreatedBy(currentUser.getUserId());
+			employee.setUpdatedBy(currentUser.getUserId());
+			CompanyWings wing = wingRepo.getWingById(employee.getWings().getId());
+			employee.setWings(wing);
+			employee.setCreatedAt(new Date());
+			employee.setLastUpdatedAt(new Date());
+			employee.setUserCredientials(user);
+//			employee.setProfileUrl(ticketAttachmentBaseUrl + "/user-default-pic.png");
+			employee.setDateOfJoin(employee.getDateOfJoin());
+			employee.setDateOfBirth(employee.getDateOfBirth());
+			employee.setAlternateMobileNo(employee.getAlternateMobileNo());
+			employee.setGender(employee.getGender());
+			Employee employeeNew = employeeRepository.save(employee);
+			User useredit = userRepository.getUserById(user.getId());
+//					getById();
+			useredit.setScopeId(employeeNew.getUserCredientials().getId());
+			// user.setUserRole("HR"); // setting default role
+			userRepository.save(useredit);
+
+			// New Permissions
+			EmployeePermission empPermission = new EmployeePermission();
+			empPermission.setUserId(employeeNew.getUserCredientials().getId());
+			empPermissionRepo.save(empPermission);
+
+			// Salary Create
+//				EmployeeSalary employeeSalary = new EmployeeSalary();
+//				employeeSalary.setEmployeeId(employeeNew.getUserCredientials().getId());
+//				employeeSalary.setSalStatus(SalaryStatus.ACTIVE);
+//				employeeSalary
+//						.setGrossSalary(AESEncryptionDecryption.encrypt(employee.getEmployeeSalary().getGrossSalary()));
+//				employeeSalary
+//						.setNetSalary(AESEncryptionDecryption.encrypt(employee.getEmployeeSalary().getNetSalary()));
+//				employeeSalary.setCreatedBy(currentUser.getUserId());
+//				employeeSalary.setUpdatedBy(currentUser.getUserId());
+//				employeeSalary.setCreatedAt(new Date());
+//				employeeSalary.setLastUpdatedAt(new Date());
+//				employeeSalaryRepository.save(employeeSalary);
+
+			// sending notification starts here..!
+
+			List<Map> EmployeeList = employeeRepository.getEmployeeBYReportingToId(employee.getReportingTo());
+
+			if (!EmployeeList.isEmpty()) {
+
+				for (Map employeeNotification : EmployeeList) {
+					Map request = new HashMap<>();
+					request.put("id", employeeNotification.get("id"));
+					request.put("uid", employeeNotification.get("uid"));
+					request.put("title", "EMPLOYEE CREATED");
+					request.put("body", " employee Created - " + employeeNew.getFirstName());
+					pushNotificationCall.restCallToNotification(pushNotificationRequest.PushNotification(request, 12,
+							NotificationType.EMPLOYEE_CREATED.toString()));
+
+				}
+				// inserting notification details
+				Notifications notifications = new Notifications();
+				notifications.setNotificationDesc("employee created - " + employeeNew.getFirstName());
+				notifications.setNotificationType(NotificationType.EMPLOYEE_CREATED);
+				notifications.setSenderId(employeeNew.getReportingTo());
+				notifications.setReceiverId(userDetail.getUserId());
+				notifications.setSeenStatus(false);
+				notifications.setCreatedBy(userDetail.getUserId());
+				notifications.setCreatedAt(new Date());
+				notifications.setUpdatedBy(userDetail.getUserId());
+				notifications.setLastUpdatedAt(new Date());
+
+				notificationService.createNotification(notifications);
+			}
+			UUID uuid = UUID.randomUUID();
+			String uuidAsString = uuid.toString();
+
+			if (employeeNew != null & false) {
+				String name2 = null;
+
+				HashMap mailDetails = new HashMap();
+				mailDetails.put("toEmail", employeeNew.getEmail());
+				mailDetails.put("subject", name + ", " + "Here's your new PASSWORD");
+				mailDetails.put("message", "Hi " + name2
+						+ ", \n\n We received a request to reset the password for your Account. \n\n Here's your new PASSWORD Link is: "
+//						+ application_url + "/update-password" + "?key=" + uuidAsString
+						+ "\n\n Thanks for helping us keep your account secure.\n\n Xyram Software Solutions Pvt Ltd.");
+				emailService.sendMail(mailDetails);
+			}
+			// end of the notification part...!
+
+			response.setSuccess(true);
+			response.setMessage(ResponseMessages.EMPLOYEE_ADDED);
+			Map content = new HashMap();
+			content.put("employeeId", employeeNew.geteId());
+			response.setContent(content);
+
+		} catch (ResponseStatusException re) {
+			throw new ResponseStatusException(re.getStatus(), re.getReason());
+		} catch (Exception e) {
+			throw new ResponseStatusException(HttpStatus.BAD_GATEWAY, e.getMessage());
+		}
+
+		return response;
+
+//		}
+//		}
+	}
+	private ApiResponse validateEmployee(Employee employee) throws Exception {
+		ApiResponse response = new ApiResponse(true);
+
+		String regex = "[a-z A-Z]+";
+		if (!emailValidation(employee.getEmail())) {
+			response.setMessage(ResponseMessages.EMAIL_INVALID);
+			response.setSuccess(false);
+			return response;
+		}
+
+		if (employee.getFirstName() == null || employee.getFirstName().equals("")
+				|| employee.getFirstName().length() < 3) {
+			response.setSuccess(false);
+			response.setMessage(ResponseMessages.FIRST_NAME_MAN);
+			return response;
+		}
+
+		if (!employee.getFirstName().matches(regex)) {
+			response.setSuccess(false);
+			response.setMessage(ResponseMessages.FIRST_NAME_CHAR);
+			return response;
+		}
+
+		if (employee.getFirstName().length() < 3) {
+			response.setSuccess(false);
+			response.setMessage(ResponseMessages.FIRST_NAME_LEN);
+			return response;
+		}
+
+		if (employee.getLastName() == null || employee.getLastName().equals("")
+				|| employee.getLastName().length() <= 0) {
+			response.setSuccess(false);
+			response.setMessage(ResponseMessages.LAST_NAME_MAN);
+			return response;
+		}
+		if (!employee.getLastName().matches(regex)) {
+			response.setSuccess(false);
+			response.setMessage(ResponseMessages.LAST_NAME_CHAR);
+			return response;
+		}
+
+		if (employee.getLastName().length() < 1) {
+			response.setSuccess(false);
+			response.setMessage(ResponseMessages.LAST_NAME_LEN);
+			return response;
+		}
+
+		if (employee.getLocation() == null || employee.getLocation().equals("")) {
+			response.setSuccess(false);
+			response.setMessage(ResponseMessages.LOC_MAN);
+			return response;
+		} else {
+
+//			CompanyLocation companyLocation = companyLocationRepository.getCompanyLocations(employee.getLocation());
+//			if (companyLocation != null) {
+//				employee.setLocation(employee.getLocation());
+//			}
+//			if (companyLocation == null) {
+//				response.setSuccess(false);
+//				response.setMessage(ResponseMessages.LOC_NOT_VALID);
+//				return response;
+//			}
+		}
+
+//		if (employee.getRoleId() == null || employee.getRoleId().equals("")) {
+//			response.setSuccess(false);
+//			response.setMessage(ResponseMessages.ROLE_ID_MAN);
+//		} else {
+//
+//			Role role = roleRepository.getRoleName(employee.getRoleId());
+//			if (role == null) {
+//				response.setSuccess(false);
+//				response.setMessage(ResponseMessages.ROLE_ID_NOT_VAL);
+//				return response;
+//			}
+//
+//		}
+
+		if (employee.getDesignationId() == null || employee.getDesignationId().equals("")) {
+			response.setSuccess(false);
+			response.setMessage(ResponseMessages.DES_MAN);
+			return response;
+		} else {
+
+			Designation designation = designationRepository.getDesignationNames(employee.getDesignationId());
+			if (designation == null) {
+				response.setSuccess(false);
+				response.setMessage(ResponseMessages.DES_ID_NOT_VAL);
+				return response;
+			}
+		}
+
+		if (employee.getPosition() == null || employee.getPosition().equals("")) {
+			response.setSuccess(false);
+			response.setMessage(ResponseMessages.POSITION_MAN);
+			return response;
+		}
+
+		if (employee.getPosition() != null) {
+			boolean isExist = false;
+
+			for (String position : EmployeeUtil.position) {
+				if (position.equalsIgnoreCase(employee.getPosition())) {
+					isExist = true;
+					break;
+				}
+			}
+			if (!isExist) {
+				response.setSuccess(false);
+				response.setMessage(ResponseMessages.POSITION_NOT_VAL);
+				return response;
+			}
+
+		}
+
+		if (employee.getReportingTo() != null && employee.getReportingTo().length() > 0) {
+			Employee empObj = employeeRepository.getByEmpIdE(employee.getReportingTo());
+			if (empObj == null) {
+				response.setSuccess(false);
+				response.setMessage(ResponseMessages.NOT_VALID);
+				return response;
+			}
+
+		}
+
+		if (employee.getWings() == null || employee.getWings().getId().equals("")) {
+			response.setSuccess(false);
+			response.setMessage(ResponseMessages.WING_MAN);
+			return response;
+		}
+		if (employee.getWings() != null && employee.getWings().getId() != null) {
+			CompanyWings companyWings = wingRepo.getWingByIds(employee.getWings().getId());
+
+			if (companyWings != null) {
+				employee.setWings(companyWings);
+			} else {
+				response.setSuccess(false);
+				response.setMessage(ResponseMessages.WING_NOT_EXI);
+				return response;
+			}
+		}
+
+		if (employee.getMobileNumber() == null || employee.getMobileNumber().equals("")) {
+			response.setSuccess(false);
+			response.setMessage(ResponseMessages.MOB_NUM_MAN);
+			return response;
+
+		}
+
+		else if (employee.getMobileNumber().length() != 10) {
+			response.setSuccess(false);
+			response.setMessage(ResponseMessages.INCORRECT_MOB);
+			return response;
+		}
+
+		if (employee.getAlternateMobileNo() != null && !employee.getAlternateMobileNo().equals("")) {
+			if (employee.getAlternateMobileNo().length() != 10) {
+				response.setSuccess(false);
+				response.setMessage(employee.getAlternateMobileNo() + " " + ResponseMessages.INCORRECT_MOB);
+				return response;
+			}
+		}
+
+		if (employee.getDateOfBirth() != null && !employee.getDateOfBirth().equals("")) {
+			DateFormat dateFormat = new SimpleDateFormat("yyyy-MM-dd");
+			String strDate = dateFormat.format(employee.getDateOfBirth());
+			Date tmDate = null;
+			try {
+				tmDate = new SimpleDateFormat("yyyy-MM-dd").parse(strDate);
+				Date now = new Date();
+				if (DateUtils.getDateDifference(tmDate, now)) {
+
+					throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
+							"Date of birth must be greater than 14 year");
+				}
+
+			} catch (ParseException e) {
+				e.printStackTrace();
+				throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Date format should be 'yyyy-MM-dd'");
+
+				// response.setSuccess(false);
+				// response.setMessage(ResponseMessages.DOJ_NOT_VAL);
+				// return response;
+			}
+		} 
+			//else {
+//			response.setSuccess(false);
+//			response.setMessage(ResponseMessages.DOB_MAN);
+//			return response;
+//		}
+
+//		if (employee.getDateOfJoin() != null && !employee.getDateOfJoin().equals("")) {
+//			DateFormat dateFormat = new SimpleDateFormat("yyyy-MM-dd");
+//			String strDate = dateFormat.format(employee.getDateOfJoin());
+//			String strDob = dateFormat.format(employee.getDateOfBirth());
+//			Date doj = null;
+//			Date dob = null;
+//			try {
+//				doj = new SimpleDateFormat("yyyy-MM-dd").parse(strDate);
+//				dob = new SimpleDateFormat("yyyy-MM-dd").parse(strDob);
+//				if (DateUtils.getDateDifference(dob, doj)) {
+//
+//					throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
+//							"Difference between date of birth and date of join should be 14 years");
+//
+//				}
+//
+//			} catch (ParseException e) {
+//				e.printStackTrace();
+//				throw new Exception("Date format should be 'yyyy-MM-dd'");
+//				// response.setSuccess(false);
+//				// response.setMessage(ResponseMessages.DOJ_NOT_VAL);
+//				// return response;
+//			}
+//		} else {
+//			response.setSuccess(false);
+//			response.setMessage(ResponseMessages.Join_date_man);
+//			return response;
+//		}
+
+		if (employee.getGender() == null) {
+			response.setSuccess(false);
+			response.setMessage(ResponseMessages.GENDER_MAN);
+			return response;
+		}
+
+		response.setSuccess(true);
+		return response;
+	}
+	
+	private boolean emailValidation(String email) {
+		Pattern VALID_EMAIL_ADDRESS_REGEX = Pattern.compile("^[A-Z0-9._%+-]+@[A-Z0-9.-]+\\.[A-Z]{2,6}$",
+				Pattern.CASE_INSENSITIVE);
+
+		Matcher matcher = VALID_EMAIL_ADDRESS_REGEX.matcher(email);
+		return matcher.find();
+	}
+	
+	@SuppressWarnings("rawtypes")
+	@Override
+	public ApiResponse getAllEmployee(Map<String, Object> filter, Pageable pageable) throws Exception {
+
+		ApiResponse response = new ApiResponse(false);
+
+		Page<Map> employeeList = null;
+
+		if (filter == null) {
+
+			if (!empPerConfig.isHavingpersmission("empAdmin")) {
+				employeeList = employeeRepository.getAllActiveEmployeeList(false, pageable);
+			} else {
+				employeeList = employeeRepository.getAllEmployeeList(false, pageable);
+			}
+
+		} else {
+
+			String searchString = filter.containsKey("searchString") ? !((String) filter.get("searchString")).equals("")
+					? ((String) filter.get("searchString")).toLowerCase()
+					: null : null;
+			String role = filter.containsKey("role") ? ((String) filter.get("role")) : null;// Need to Remove
+			String designation = filter.containsKey("designation") ? ((String) filter.get("designation")) : null;
+			String position = filter.containsKey("position") ? filter.get("position") != null
+					? !((String) filter.get("position")).equals("") ? ((String) filter.get("position")).toLowerCase()
+							: null
+					: null : null;
+			String wing = filter.containsKey("wing") ? filter.get("wing") != null
+					? !((String) filter.get("wing")).equals("") ? ((String) filter.get("wing")) : null
+					: null : null;
+			String userStatus = filter.containsKey("status") ? filter.get("status") != null
+					? !((String) filter.get("status")).equals("") ? ((String) filter.get("status")) : null
+					: null : null;
+
+			UserStatus status = null;
+			if (userStatus != null) {
+				try {
+					status = userStatus != null ? UserStatus.toEnum(userStatus) : null;
+				} catch (IllegalArgumentException e) {
+					throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
+							filter.get("status").toString() + " is not a valid status");
+				}
+			}
+			if (!empPerConfig.isHavingpersmission("empAdmin")) {
+				employeeList = employeeRepository.getAllActiveEmployeeListByFilter(false, pageable, searchString,
+						designation, position, wing);
+			} else {
+				employeeList = employeeRepository.getAllEmployeeListByFilter(false, pageable, searchString, designation,
+						position, wing, status);
+			}
+
+		}
+
+		Map content = new HashMap();
+		content.put("employeeList", employeeList);
+		// ApiResponse response = new ApiResponse(true);
+		response.setSuccess(true);
+		response.setMessage("Employee Retrieved Successfully");
+		response.setContent(content);
+		return response;
+	}
+
+	@Override
+	public ApiResponse updateEmployeeStatus(String userId, UserStatus userstatus) throws Exception {
+		ApiResponse response = validateStatus(userstatus);
+
+		if (!empPerConfig.isHavingpersmission("empAdmin")) {
+			response.setSuccess(false);
+			response.setMessage("Not authorised to update employee status");
+			return response;
+		}
+		if (response.isSuccess()) {
+			Employee employee = employeeRepository.getbyUserId(userId);
+			if (employee != null) {
+
+				employee.setStatus(userstatus);
+				employeeRepository.save(employee);
+				User user = userRepository.getById(employee.getUserCredientials().getId());
+				user.setStatus(userstatus);
+				userRepository.save(user);
+
+				// Employee employeere=new Employee();z
+
+				response.setSuccess(true);
+				response.setMessage(ResponseMessages.STATUS_UPDATE);
+				response.setContent(null);
+			}
+		} else {
+			response.setSuccess(false);
+			response.setMessage(ResponseMessages.EMPLOYEE_INVALID);
+			response.setContent(null);
+		}
+
+		return response;
+	}
+
+	private ApiResponse validateStatus(UserStatus userstatus) {
+		ApiResponse response = new ApiResponse(false);
+		if (userstatus == UserStatus.ACTIVE || userstatus == UserStatus.INACTIVE) {
+			response.setMessage(ResponseMessages.STATUS_UPDATE);
+			response.setSuccess(true);
+		}
+
+		else {
+			response.setMessage(ResponseMessages.USERSTATUS_INVALID);
+			response.setSuccess(false);
+
+		}
+
+		return response;
+	}
+
+	@Override
+	public ApiResponse editEmployee(String userId, Employee employeeRequest) throws Exception {
+		ApiResponse response = new ApiResponse(false);
+
+		if (!empPerConfig.isHavingpersmission("empAdmin")) {
+			response.setSuccess(false);
+			response.setMessage("Not authorised to edit employee");
+			return response;
+		}
+
+		response = validateEmployee(employeeRequest);
+
+		if (response.getMessage() != null && response.getMessage() != "") {
+			return response;
+		}
+
+		if (employeeRequest.getEmail() == null || employeeRequest.getEmail().equals("")) {
+			response.setSuccess(false);
+			response.setMessage(ResponseMessages.MAILID_MAN);
+			return response;
+		}
+		if (!emailValidation(employeeRequest.getEmail())) {
+			response.setSuccess(false);
+			response.setMessage(ResponseMessages.INVAL_MAIL_ID);
+			return response;
+		}
+
+		String email = employeeRepository.filterByEmail(employeeRequest.getEmail());
+
+		String employeeCode = employeeRepository.filterByEmpID(employeeRequest.geteId());
+
+		Employee employee = employeeRepository.getUserrByUserId(userId);
+		User user = userRepository.getById(employee.getUserCredientials().getId());
+
+		if (!employee.getEmail().equals(employeeRequest.getEmail()) && email != null) {
+
+			response.setSuccess(false);
+			response.setMessage(ResponseMessages.MAIL_ID_EXI);
+			return response;
+
+		}
+
+		if (!employee.geteId().equals(employeeRequest.geteId()) && employeeCode != null) {
+			response.setSuccess(false);
+			response.setMessage(ResponseMessages.EMP_CODE);
+			return response;
+		}
+
+		if (employee.getReportingTo() != null && employeeRequest.getReportingTo() != null) {
+			if (employeeRequest.getReportingTo().equals(employee.getUserCredientials().getId())) {
+				response.setSuccess(false);
+				response.setMessage("Reporting to cannot be the same user");
+				return response;
+			}
+		}
+
+		if (employee != null) {
+			employee.setFirstName(employeeRequest.getFirstName());
+			employee.setLastName(employeeRequest.getLastName());
+			employee.setLastUpdatedAt(new Date());
+
+			employee.setFirstName(employee.getFirstName().trim());
+			String name = employee.getFirstName();
+			String firstLetter = name.substring(0, 1);
+			String remainingLetters = name.substring(1, name.length());
+			firstLetter = firstLetter.toUpperCase();
+			employee.setFirstName(firstLetter + remainingLetters);
+
+			user.setName(employeeRequest.getFirstName() + " " + employeeRequest.getLastName());
+			user.setEmail(employeeRequest.getEmail());
+			user.setUsername(employeeRequest.getEmail());
+			employee.setMiddleName(employeeRequest.getMiddleName());
+			employee.setMobileNumber(employeeRequest.getMobileNumber());
+			employee.setPassword(employeeRequest.getPassword());
+			employee.setReportingTo(employeeRequest.getReportingTo());
+			employee.setLocation(employeeRequest.getLocation());
+			employee.setPosition(employeeRequest.getPosition());
+			employee.setWings(employeeRequest.getWings());
+			employee.setDateOfJoin(employeeRequest.getDateOfJoin());
+			employee.setEmail(employeeRequest.getEmail());
+			employee.seteId(employeeRequest.geteId());
+//			employee.setRoleId(employeeRequest.getRoleId());
+//
+//			Role role = roleRepository.getById(employeeRequest.getRoleId());
+			employee.setDesignationId(employeeRequest.getDesignationId());
+
+			employee.setDateOfBirth(employeeRequest.getDateOfBirth());
+			employee.setAlternateMobileNo(employeeRequest.getAlternateMobileNo());
+			employee.setGender(employeeRequest.getGender());
+
+//			user.setUserRole(role.getRoleName());
+			userRepository.save(user);
+			employeeRepository.save(employee);
+			response.setSuccess(true);
+			response.setMessage(ResponseMessages.EMPLOYEE_UPDATION);
+			response.setContent(null);
+		}
+
+		else {
+			response.setSuccess(false);
+			response.setMessage(ResponseMessages.EMPLOYEE_INVALID);
+			response.setContent(null);
+		}
+
+		return response;
+	}
+
+	@Override
+	public ApiResponse getAllEmpByProject(String projectid, String clientid) {
+		ApiResponse response = new ApiResponse(false);
+		Projects projectRequest = new Projects();
+		projectRequest.setpId(projectid);
+		projectRequest.setClientId(clientid);
+		ApiResponse projvalres = ProjectSerImpl.validateClientIdProjectId(projectRequest);
+		if (projvalres.isSuccess()) {
+			List<Map> employeeList = employeeRepository.getAllEmpByProject(projectid);
+			Map content = new HashMap();
+			content.put("EmployeeList", employeeList);
+			response.setSuccess(true);
+			response.setMessage("Employee Retrieved Successfully");
+			response.setContent(content);
+		} else {
+			response.setMessage(ResponseMessages.ClIENT_ID_VALID);
+			response.setSuccess(false);
+		}
+		return response;
+	}
+
+	@Override
+	public ApiResponse searchEmployeeNotAssignedToProject(String projectid, String clientid, String searchString) {
+		ApiResponse response = new ApiResponse(false);
+		if (searchString.trim().isEmpty() || searchString.trim().equals("")) {
+			throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Search string should not be empty");
+		}
+
+		Projects projectRequest = new Projects();
+		projectRequest.setpId(projectid);
+		projectRequest.setClientId(clientid);
+		ApiResponse projvalres = ProjectSerImpl.validateClientIdProjectId(projectRequest);
+		List<Map> employeeList = employeeRepository.searchEmployeeNotAssignedToProject(projectid, searchString,
+				currentUser.getUserId());
+		Map content = new HashMap();
+		content.put("EmployeeList", employeeList);
+		System.out.println(currentUser.getFirstName());
+		response.setSuccess(true);
+		response.setContent(content);
+		return response;
+	}
+
+	@Override
+	public ApiResponse searchEmployeeNotAssignedToByProject(String projectid, String searchString) {
+
+		ApiResponse response = new ApiResponse(false);
+		if (searchString.trim().isEmpty() || searchString.trim().equals("")) {
+			throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Search string should not be empty");
+		}
+		Projects projectRequest = new Projects();
+		projectRequest.setpId(projectid);
+
+		ApiResponse projvalres = ProjectSerImpl.validateProjectId(projectRequest);
+		List<Map> employeeList = employeeRepository.searchEmployeeNotAssignedToProject(projectid, searchString,
+				currentUser.getUserId());
+		Map content = new HashMap();
+		content.put("EmployeeList", employeeList);
+		response.setSuccess(true);
+		response.setContent(content);
+		return response;
+	}
+
+	@Override
+	public ApiResponse searchInfraUser(String searchString) {
+		ApiResponse response = new ApiResponse(false);
+		List<Map> employeeList = employeeRepository.searchInfraUsersForInfraUser(searchString, currentUser.getUserId());
+		Map content = new HashMap();
+		if (employeeList.size() > 0) {
+			content.put("EmployeeList", employeeList);
+			response.setSuccess(true);
+			response.setContent(content);
+		} else {
+			content.put("EmployeeList", employeeList);
+			response.setSuccess(false);
+			response.setContent(content);
+		}
+
+		return response;
+	}
+
+	@Override
+	public ApiResponse searchEmployee(String searchString) throws Exception {
+		ApiResponse response = new ApiResponse(false);
+		if (searchString.trim().isEmpty() || searchString.trim().equals("")) {
+			throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Search string should not be empty");
+		}
+		// Map employee = employeeRepository.getEmployeeBYId(searchString);
+		// List<Map> reportees = employeeRepository.getReportingList(employeeId);
+		List<Map> employeeList = new ArrayList<>();
+		if (!empPerConfig.isHavingpersmission("empAdmin")) {
+			employeeList = employeeRepository.searchActiveEmployee(searchString);
+		} else {
+			employeeList = employeeRepository.searchEmployee(searchString);
+
+		}
+
+		Map content = new HashMap();
+		if (employeeList.size() > 0) {
+			content.put("EmployeeList", employeeList);
+			response.setSuccess(true);
+			response.setMessage("Employee Retrieved successfully");
+			response.setContent(content);
+		} else {
+			content.put("EmployeeList", employeeList);
+			response.setSuccess(false);
+			response.setContent(content);
+		}
+
+		return response;
+	}
+
+	@Override
+	public ApiResponse searchInfraUsersForInfraUser(String searchString) {
+		ApiResponse response = new ApiResponse(false);
+//		List<Map> employeeList = employeeRepository.searchInfraUsersForInfraUser(searchString,currentUser.getUserId());
+		List<Map> employeeList = employeeRepository.searchInfraUsersForInfraUser(searchString, currentUser.getUserId());
+
+		Map content = new HashMap();
+		if (employeeList.size() > 0) {
+			content.put("EmployeeList", employeeList);
+			response.setSuccess(true);
+			response.setMessage("Employee Retrieved successfully");
+			response.setContent(content);
+		} else {
+			content.put("EmployeeList", employeeList);
+			response.setSuccess(false);
+			response.setMessage("Employee Not Found!!");
+			response.setContent(content);
+		}
+
+		return response;
+	}
+
+	@Override
+	public ApiResponse getAllInfraUser() {
+		List<Map> infraUserList = employeeRepository.getAllInfraUserList();
+		Map content = new HashMap();
+
+		content.put("infraUserList", infraUserList);
+		ApiResponse response = new ApiResponse(true);
+		response.setSuccess(true);
+		response.setMessage("Employee Retrieved successfully");
+		response.setContent(content);
+		return response;
+	}
+
+	@Override
+	public ApiResponse getAllPermissions() {
+		List<Map> permissionList = permissionRepository.getAllPermissions();
+		Map content = new HashMap();
+
+		content.put("PermissionList", permissionList);
+		ApiResponse response = new ApiResponse(true);
+		response.setSuccess(true);
+		response.setContent(content);
+		return response;
+	}
+
+	@Override
+	public List<Employee> getListOfInfraUSer() {
+		List<Employee> infraList = employeeRepository.getAllInfraList();
+		Map content = new HashMap();
+
+		content.put("infraList", infraList);
+		ApiResponse response = new ApiResponse(true);
+		response.setSuccess(true);
+		response.setContent(content);
+		return infraList;
+	}
+
+	@Override
+	public List<Map> getListOfInfraAdmins() {
+		List<Map> infraList = employeeRepository.getAllInfraAdmins();
+		Map content = new HashMap();
+
+		content.put("infraList", infraList);
+		ApiResponse response = new ApiResponse(true);
+		response.setSuccess(true);
+		response.setMessage("List of Infra Admins");
+		response.setContent(content);
+		return infraList;
+	}
+
+//	@Override
+//	public List<Map> getListOfDeveloper() {
+//		List<Map> developerList = employeeRepository.getListOfDeveloper();
+//		Map content = new HashMap();
+//
+//		content.put("developerList", developerList);
+//		ApiResponse response = new ApiResponse(true);
+//		response.setSuccess(true);
+//		response.setContent(content);
+//		return developerList;
+//	}
+
+//	@Override
+//	public List<Map> getListOfDeveloperInfra() {
+//		List<Map> developerInfraList = employeeRepository.getListOfDeveloper();
+//		Map content = new HashMap();
+//
+//		content.put("developerList", developerInfraList);
+//		ApiResponse response = new ApiResponse(true);
+//		response.setSuccess(true);
+//		response.setContent(content);
+//		return developerInfraList;
+//	}
+
+	@Override
+	public ApiResponse updateEmployee(Map employeeRequest) throws Exception {
+		ApiResponse response = new ApiResponse(true);
+
+		if (!empPerConfig.isHavingpersmission("empAdmin")) {
+			response.setSuccess(false);
+			response.setMessage("Not authorised to update employee");
+			return response;
+		}
+
+		Employee employeeObj = employeeRepository.getUserrByUserId(currentUser.getUserId());
+
+		if (employeeObj != null) {
+
+			employeeObj.setFirstName((String) employeeRequest.get("firstName"));
+			employeeObj.setLastName((String) employeeRequest.get("lastName"));
+			// employeeObj.setLastUpdatedAt(new Date());
+			employeeObj.setMiddleName((String) employeeRequest.get("middleName"));
+			employeeObj.setMobileNumber((String) employeeRequest.get("mobileNumber"));
+
+			employeeRepository.save(employeeObj);
+
+			response.setSuccess(true);
+			response.setMessage(ResponseMessages.EMPLOYEE_UPDATION);
+			response.setContent(null);
+			return response;
+		}
+
+		else {
+			response.setSuccess(false);
+			response.setMessage(ResponseMessages.EMPLOYEE_INVALID);
+			response.setContent(null);
+
+			return response;
+		}
+	}
+
+	public ApiResponse getAllProfile() {
+		Map ProfileList = employeeRepository.getAllEmployeeUserList(currentUser.getUserId());
+		Map content = new HashMap();
+
+		content.put("ProfileList", ProfileList);
+		ApiResponse response = new ApiResponse(true);
+		response.setSuccess(true);
+		response.setContent(content);
+		return response;
+	}
+
+	@Override
+	public ApiResponse updateProfileImage(MultipartFile file, String userId) throws IOException {
+
+		ApiResponse response = new ApiResponse(true);
+
+		byte[] filearray;
+		try {
+			filearray = file.getBytes();
+		} catch (IOException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
+//	       System.out.println(file.);
+		String fileextension = file.getOriginalFilename().substring(file.getOriginalFilename().lastIndexOf("."));
+		String filename = getRandomFileName() + System.currentTimeMillis();
+
+		// String key = keyName+file.getOriginalFilename();
+		String key = keyName + ticketAttachmentBaseUrl +"/"+ file.getOriginalFilename();
+		boolean succesResponse = false;
+
+		String s3BucketFileKey = s3BucketStorageService.uploadFile(file, key);
+
+		if (s3BucketFileKey != null) {
+			Employee employeeObj = employeeRepository.getUserrByUserId(userId);
+			if (employeeObj != null) {
+				// employeeObj=new Employee();
+				employeeObj.setProfileUrl("https://"+ previewKey+s3BucketFileKey);
+				employeeRepository.save(employeeObj);
+				response.setSuccess(true);
+				response.setMessage(ResponseMessages.EMPLOYEE_PROFILE_UPDATION);
+				response.setContent(null);
+				return response;
+			} else {
+
+				response.setSuccess(false);
+				response.setMessage(ResponseMessages.EMPLOYEE_INVALID);
+				response.setContent(null);
+
+			}
+			return response;
+		}
+		{
+			response.setSuccess(false);
+			response.setMessage(ResponseMessages.UPLOAD_IMAGE);
+		}
+		return response;
+
+	}
+
+	public String getRandomFileName() {
+		int leftLimit = 97; // letter 'a'
+		int rightLimit = 122; // letter 'z'
+		int targetStringLength = 10;
+		Random random = new Random();
+
+		String generatedString = random.ints(leftLimit, rightLimit + 1).limit(targetStringLength)
+				.collect(StringBuilder::new, StringBuilder::appendCodePoint, StringBuilder::append).toString();
+
+		return generatedString;
+	}
+
+	public String addFileAdmin(MultipartFile file, String fileName) {
+		System.out.println("bjsjsjn");
+		String SFTPHOST = "13.229.55.43"; // SFTP Host Name or SFTP Host IP Address
+		int SFTPPORT = 22; // SFTP Port Number
+		String SFTPUSER = "ubuntu"; // User Name
+		String SFTPPASS = ""; // Password
+		String SFTPKEY = "/home/ubuntu/tomcat-be/webapps/Ticket_tool-0.0.1-SNAPSHOT/WEB-INF/classes/Covid-Phast-Prod.ppk";
+		String SFTPWORKINGDIRAADMIN = "/home/ubuntu/tomcat-be/webapps/image/ticket-attachment";// Source Directory on
+																								// SFTP
+																								// server
+		String fileNameOriginal = fileName;
+		try {
+			JSch jsch = new JSch();
+			if (SFTPKEY != null && !SFTPKEY.isEmpty()) {
+				jsch.addIdentity(SFTPKEY);
+			}
+			session = jsch.getSession(SFTPUSER, SFTPHOST, SFTPPORT);
+//	        session.setPassword(SFTPPASS);
+			java.util.Properties config = new java.util.Properties();
+			config.put("StrictHostKeyChecking", "no");
+			session.setConfig(config);
+			session.connect(); // Create SFTP Session
+			channel = session.openChannel("sftp"); // Open SFTP Channel
+			channel.connect();
+			channelSftp = (ChannelSftp) channel;
+			channelSftp.cd(SFTPWORKINGDIRAADMIN);// Change Directory on SFTP Server
+			channelSftp.put(file.getInputStream(), fileName);
+			channelSftp.getSession().setTimeout(15000);
+			System.out.println("added");
+		} catch (Exception ex) {
+			ex.printStackTrace();
+		} finally {
+			if (channelSftp != null)
+				channelSftp.disconnect();
+			if (channel != null)
+				channel.disconnect();
+			if (session != null)
+				session.disconnect();
+		}
+		return fileNameOriginal;
+	}
+
+	@Override
+	public ApiResponse createVendor(JobVendorDetails vendorDetails) throws Exception {
+		ApiResponse response = new ApiResponse(false);
+
+		if (!empPerConfig.isHavingpersmission("vendorAccess")) {
+			response.setSuccess(false);
+			response.setMessage("Not authorised to create JobVendor");
+			return response;
+		}
+
+		JobVendorDetails jobVendorDetails = jobVendorRepository.getEmail(vendorDetails.getEmail());
+
+		if (vendorDetails.getEmail() == null || vendorDetails.getEmail().equals("")) {
+			throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "MailId is mandatory");
+		}
+
+		if (jobVendorDetails != null) {
+			throw new ResponseStatusException(HttpStatus.BAD_REQUEST, " MailId already exists!");
+		}
+
+		if (!emailValidation(vendorDetails.getEmail())) {
+			throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Invalid EmailId");
+
+		}
+		VendorType vendorType = vendorTypeRepository.getVendorType(vendorDetails.getTypeOfVendor());
+		if (vendorDetails.getTypeOfVendor() == null || vendorDetails.getTypeOfVendor().equals("")) {
+			throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "VendorType is manditory");
+		}
+		if (vendorType == null) {
+			throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "VendorType not exist");
+		}
+		if (vendorDetails != null) {
+			vendorDetails.setProfileUrl(ticketAttachmentBaseUrl + "/user-default-pic.png");
+			vendorDetails.setPassword("235423653");
+			JobVendorDetails vendorNew = vendorRepository.save(vendorDetails);
+
+			if (vendorNew != null) {
+				response.setSuccess(true);
+
+				response.setMessage(ResponseMessages.VENDOR_CREATED);
+			}
+		}
+		// response = validateEmployee(validateEmployee(response));
+//		System.out.println("username::" + currentUser.getName());
+
+//		if (response.isSuccess()) {
+//		try {
+//			User user = new User();
+//			user.setUsername(vendorDetails.getEmail());
+//			String encodedPassword = new BCryptPasswordEncoder().encode(vendorDetails.getPassword());
+//			user.setPassword(encodedPassword);
+		// Employee employeere=new Employee();
+//		Role role = roleRepository.getById(vendorDetails.getRoleId());
+//			if (role != null) {
+//				try {
+//
+//					user.setUserRole(role.getRoleName());
+//				} catch (Exception e) {
+//					throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
+//							role.getRoleName() + " is not a valid status");
+//				}
+		// } else {
+		// throw new ResourceNotFoundException("invalid user role ");
+		// }
+//			user.setStatus(UserStatus.ACTIVE);
+//			System.out.println(user.getEmail() + "::" + user.getUsername() + "::" + user.getCreatedAt());
+//			userRepository.save(user);
+//			UserPermissions permissions = new UserPermissions();
+//			permissions.setEmpModPermission(permissionConfig.getEMPLOYEES_PERMISSION());
+//			permissions.setProjectModPermission(permissionConfig.getPROJECTS_PERMISSION());
+//			permissions.setTicketModPermission(permissionConfig.getTICKETS_PERMISSION());
+//			permissions.setJobOpeningModPermission(permissionConfig.getJOBOPENINGS_PERMISSION());
+//			permissions.setJobInterviewsModPermission(permissionConfig.getJOBINTERVIEWS_PERMISSION());
+//			permissions.setJobAppModPermission(permissionConfig.getJOBAPPLICATIONS_PERMISSION());
+//			permissions.setJobOfferModPermission(permissionConfig.getJOBOFFERS_PERMISSION());
+//			permissions.setJobVendorsModPermission(permissionConfig.getJOBVENDORS_PERMISSION());
+//			permissions.setUserId(user.getId());
+//			userPermissionConfig.save(permissions);
+
+//				vendorDetails.setCreatedBy(currentUser.getUserId());
+//				vendorDetails.setUpdatedBy(currentUser.getUserId());
+//				vendorDetails.setCreatedAt(new Date());
+//				vendorDetails.setLastUpdatedAt(new Date());
+//			vendorDetails.setUserCredientials(user);
+//			vendorDetails.setProfileUrl(ticketAttachmentBaseUrl + "/user-default-pic.png");
+		JobVendorDetails vendorNew = vendorRepository.save(vendorDetails);
+//			if (vendorNew != null) {
+//				Employee empObj = new Employee();
+//				List<Employee> EmployeeByRole = employeeRepository.getVendorNotification();
+//
+//				for (Employee employeeNotification : EmployeeByRole) {
+//					Map request = new HashMap<>();
+//					request.put("id", employeeNotification.geteId());
+//					request.put("uid", employeeNotification.getUserCredientials().getUid());
+//					request.put("title", "JOB_VENDOR_CREATED");
+//					// request.put("body", "JOB_VENDOR_CREATED - " +
+//					// employeeNotification.getRoleId());
+//					pushNotificationCall.restCallToNotification(pushNotificationRequest.PushNotification(request, 12,
+//							NotificationType.JOB_VENDOR_CREATED.toString()));
+//
+//					// inserting notification details
+//					Notifications notifications = new Notifications();
+//					notifications.setNotificationDesc("JOB_VENDOR_CREATED - " + employeeNotification.getFirstName());
+//					notifications.setNotificationType(NotificationType.JOB_VENDOR_CREATED);
+//					notifications.setSenderId(empObj.getReportingTo());
+//					notifications.setReceiverId(userDetail.getUserId());
+//					notifications.setSeenStatus(false);
+//					notifications.setCreatedBy(userDetail.getUserId());
+//					notifications.setCreatedAt(new Date());
+//					notifications.setUpdatedBy(userDetail.getUserId());
+//					notifications.setLastUpdatedAt(new Date());
+//
+//					notificationService.createNotification(notifications);
+//					UUID uuid = UUID.randomUUID();
+//					String uuidAsString = uuid.toString();
+//					if (employeeNotification != null) {
+//						String name = null;
+//
+//						HashMap mailDetails = new HashMap();
+//						mailDetails.put("toEmail", employeeNotification.getEmail());
+//						mailDetails.put("subject", name + ", " + "Here's your new PASSWORD");
+//						mailDetails.put("message", "Hi " + name
+//								+ ", \n\n We received a request to reset the password for your Account. \n\n Here's your new PASSWORD Link is: "
+//								+ application_url + "/update-password" + "?key=" + uuidAsString
+//								+ "\n\n Thanks for helpRing us keep your account secure.\n\n Xyram Software Solutions Pvt Ltd.");
+//						emailService.sendMail(mailDetails);
+//					}
+//				}
+
+		// Assigning default project to Developer
+//				if (employee.getRoleId().equals("R3")) {
+//					System.out.println("Inside employee.getRoleId() - " + employee.getRoleId());
+//					ProjectMembers projectMember = new ProjectMembers();
+//					projectMember.setCreatedAt(new Date());
+//					projectMember.setLastUpdatedAt(new Date());
+//					projectMember.setUpdatedBy(currentUser.getUserId());
+//					projectMember.setCreatedBy(currentUser.getUserId());
+//					projectMember.setStatus(ProjectMembersStatus.ACTIVE);
+//					projectMember.setProjectId("2c9fab1f7bbeee88017bbf22f0af0002");
+//					projectMember.setEmployeeId(employee.geteId());
+//					projectMemberRepository.save(projectMember);
+//				}
+//				response.setSuccess(true);
+//				response.setMessage(ResponseMessages.VENDOR_CREATED);
+//				Map content = new HashMap();
+//				content.put("vendorId", vendorNew.getvId());
+//				response.setContent(content);
+//			}
+//		} 
+//	catch (Exception e) {
+//			System.out.println("Error Occured :: " + e.getMessage());
+//		}
+
+		return response;
+	}
+
+	@Override
+	public ApiResponse getEmployeeDetails(String userId) throws Exception {
+		ApiResponse response = new ApiResponse(false);
+		EmployeeSalary employeeSalary = new EmployeeSalary();
+		EmployeeBankDetails employeeBankDetails = new EmployeeBankDetails();
+
+		List<Map> employee = employeeRepository.getbyEmpByUserId(userId);
+		Map content = new HashMap();
+
+		if (empPerConfig.isHavingpersmission("empViewSal")) {
+			employeeSalary = employeeSalaryRepository.getEmployeeSalaryByUserId(userId);
+
+			employeeBankDetails = employeeBankRepository.getBankDetailsByUserId(userId);
+
+			if (employeeBankDetails != null) {
+				content.put("employeeBankDetails", employeeBankDetails);
+			}
+			if (employeeSalary != null && employeeSalary.getGrossSalary() != null
+					&& employeeSalary.getNetSalary() != null) {
+				employeeSalary.setGrossSalary(AESEncryptionDecryption.decrypt(userId, employeeSalary.getGrossSalary()));
+				employeeSalary.setNetSalary(AESEncryptionDecryption.decrypt(userId, employeeSalary.getNetSalary()));
+				if (employeeSalary.getTds() != null) {
+					employeeSalary.setTds(AESEncryptionDecryption.decrypt(userId, employeeSalary.getTds()));
+
+				}
+				content.put("employeeSalary", employeeSalary);
+			}
+
+		}
+		content.put("employeeDetails", employee);
+		if (employee != null) {
+			response.setSuccess(true);
+			response.setMessage("Employee Retrieved Successfully");
+			response.setContent(content);
+		}
+
+		else {
+			response.setSuccess(false);
+			response.setMessage(ResponseMessages.EMPLOYEE_INVALID);
+			response.setContent(null);
+		}
+
+		return response;
+	}
+
+	@Override
+	public ApiResponse getEmployeeDetailsById(String userId) throws Exception {
+		ApiResponse response = new ApiResponse(false);
+		EmployeeSalary employeeSalary = new EmployeeSalary();
+		EmployeeBankDetails employeeBankDetails = new EmployeeBankDetails();
+		boolean reportee = false;
+		Map employee = employeeRepository.getEmployeeBYId(userId);
+		List<Map> reportees = employeeRepository.getReportingList(userId);
+		// List<Map> EmployeeProject = employeeRepository.getEmployeeListById(userId);
+		List<Map> employeeObj = projectMemberRepository.getEmployeeId(userId);
+
+		if (reportees.size() > 0) {
+			reportee = true;
+		}
+		Map content = new HashMap();
+
+		if (empPerConfig.isHavingpersmission("empViewSal")) {
+			employeeBankDetails = employeeBankRepository.getBankDetailsByUserId(userId);
+
+			if (employeeBankDetails != null) {
+				content.put("employeeBankDetails", employeeBankDetails);
+			} else {
+				content.put("employeeBankDetails", null);
+			}
+			employeeSalary = employeeSalaryRepository.getEmployeeSalaryByUserId(userId);
+			if (employeeSalary != null && employeeSalary.getGrossSalary() != null
+					&& employeeSalary.getNetSalary() != null) {
+				employeeSalary.setGrossSalary(AESEncryptionDecryption.decrypt(userId, employeeSalary.getGrossSalary()));
+				employeeSalary.setNetSalary(AESEncryptionDecryption.decrypt(userId, employeeSalary.getNetSalary()));
+				if (employeeSalary.getTds() != null) {
+					employeeSalary.setTds(AESEncryptionDecryption.decrypt(userId, employeeSalary.getTds()));
+
+				}
+				content.put("employeeSalary", employeeSalary);
+			} else {
+				content.put("employeeSalary", null);
+
+			}
+
+		} else {
+			content.put("employeeSalary", null);
+			content.put("employeeBankDetails", null);
+		}
+
+		content.put("employeeDetails", employee);
+		content.put("reportee", reportee);
+		content.put("reportees", reportees);
+		content.put("employeeProject", employeeObj);
+
+		if (employee != null) {
+			response.setSuccess(true);
+			response.setMessage("Employee Retrieved Successfully");
+			response.setContent(content);
+		}
+
+		else {
+			response.setSuccess(false);
+			response.setMessage(ResponseMessages.EMPLOYEE_INVALID);
+			response.setContent(null);
+		}
+
+		return response;
+	}
+
+//	@Override
+//	public ApiResponse getJobVendor(Map<String, Object> filter, Pageable pageable) {
+//		ApiResponse response = new ApiResponse(false);
+//
+//		String searchString = filter.containsKey("searchString") ? ((String) filter.get("searchString")).toLowerCase()
+//				: null;
+//		Page<Vendor> jobVendors = vendorRepository.getJobVendors(searchString, pageable);
+//		Map content = new HashMap();
+//		content.put("jobVendors", jobVendors);
+//		if (content != null) {
+//			response.setSuccess(true);
+//			response.setMessage("Vendor Retrieved Successfully");
+//			response.setContent(content);
+//		}
+//
+//		else {
+//			response.setSuccess(false);
+//			response.setMessage("Could not retrieve data");
+//			response.setContent(null);
+//		}
+//
+//		return response;
+//	}
+
+	@Override
+	public ApiResponse serachJobVendor(String searchString) throws Exception {
+		ApiResponse response = new ApiResponse(false);
+		if (searchString.trim().isEmpty() || searchString.trim().equals("")) {
+			throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Search string should not be empty");
+		}
+
+		if (!empPerConfig.isHavingpersmission("jvViewAll")) {
+			response.setSuccess(false);
+			response.setMessage("Not authorised to search JobVendor");
+			return response;
+		}
+
+		List<Vendor> jobVendors = vendorRepository.serachJobVendors(searchString);
+		Map content = new HashMap();
+		content.put("jobVendors", jobVendors);
+		if (content != null) {
+			response.setSuccess(true);
+			response.setMessage("Vendor Retrieved Successfully");
+			response.setContent(content);
+		}
+
+		else {
+			response.setSuccess(false);
+			response.setMessage("Could not retrieve data");
+			response.setContent(null);
+		}
+
+		return response;
+	}
+
+	@Override
+	public ApiResponse getAllEmployeeCurrentMonth(Pageable pageable) {
+		ApiResponse response = new ApiResponse(false);
+
+		List<Map> employeeList = employeeRepository.getAllEmployeeCurrentMonth(pageable);
+		Map content = new HashMap();
+		content.put("employeeList", employeeList);
+		if (employeeList != null) {
+			response.setSuccess(true);
+			response.setMessage("Employee Retrieved Successfully");
+			response.setContent(content);
+		}
+
+		else {
+			response.setSuccess(false);
+			response.setMessage("Could not retrieve data");
+			response.setContent(null);
+		}
+
+		return response;
+	}
+
+	@Override
+	public ApiResponse changeAllEmployeePermissionsToDefault() {
+		ApiResponse response = new ApiResponse(false);
+		List<User> employeeList = userRepository.findAll();
+		for (User employee : employeeList) {
+			EmployeePermission empPermission = empPermissionRepo.getbyUserId(employee.getId());
+			if (empPermission != null)
+				empPermissionRepo.save(empPermission);
+			else {
+				EmployeePermission empPerObj = new EmployeePermission();
+				if (employee.getId() != null) {
+					empPerObj.setUserId(employee.getId());
+					empPermissionRepo.save(empPerObj);
+				}
+			}
+		}
+		response.setSuccess(true);
+		response.setMessage("Changed Permissions to Default");
+		return response;
+	}
+
+	@Override
+	public ApiResponse getJobVendorById(String vendorId) {
+		ApiResponse response = new ApiResponse(false);
+
+		Vendor employee = vendorRepository.getJobVendorById(vendorId);
+		Map content = new HashMap();
+		content.put("employee", employee);
+		if (employee != null) {
+			response.setSuccess(true);
+			response.setMessage("Employee Retrieved Successfully");
+			response.setContent(content);
+		}
+
+		else {
+			response.setSuccess(false);
+			response.setMessage("Could not retrieve data");
+			response.setContent(null);
+		}
+
+		return response;
+	}
+
+	@Override
+	public ApiResponse getListByAccessToken() {
+		ApiResponse response = new ApiResponse(false);
+		String id = currentUser.getUserId();
+		if (id != null) {
+			Map employee = employeeRepository.getbyAccessToken(id);
+
+			response.setSuccess(true);
+			response.setMessage("Employee Retrieved Successfully");
+			response.setContent(employee);
+		} else {
+			throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Access token is required");
+		}
+		return response;
+	}
+
+	@Override
+	public ApiResponse editJobVendor(String vendorId, JobVendorDetails vendorRequest) throws Exception {
+		// TODO Auto-generated method stub
+		ApiResponse response = new ApiResponse(false);
+
+		if (!empPerConfig.isHavingpersmission("vendorAccess")) {
+			response.setSuccess(false);
+			response.setMessage("Not authorised to edit JobVendor");
+			return response;
+		}
+
+		if (vendorRequest.getEmail() == null || vendorRequest.getEmail().equals("")) {
+			throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Email Id is mandatory");
+		}
+		if (!emailValidation(vendorRequest.getEmail())) {
+			throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Invalid Email Id");
+
+		}
+
+		JobVendorDetails vendor = vendorRepository.getById(vendorId);
+
+		String email = vendorRepository.filterEmail(vendorRequest.getEmail());
+
+		if (!vendor.getEmail().equals(vendorRequest.getEmail()) && email != null) {
+
+			response.setSuccess(false);
+			response.setMessage(ResponseMessages.MAIL_ID_EXI);
+			return response;
+
+		}
+
+		if (vendor != null) {
+//			Employee empObj = new Employee();
+//			List<Employee> EmployeeByRole = employeeRepository.getVendorNotification();
+//
+//			for (Employee employeeNotification : EmployeeByRole) {
+//				Map request = new HashMap<>();
+//				request.put("id", employeeNotification.geteId());
+//				request.put("uid", employeeNotification.getUserCredientials().getUid());
+//				request.put("title", "JOB_VENDOR_EDITED");
+//				request.put("body", "JOB_VENDOR_EDITED - " + employeeNotification.getRoleId());
+//				pushNotificationCall.restCallToNotification(pushNotificationRequest.PushNotification(request, 12,
+//						NotificationType.JOB_VENDOR_CREATED.toString()));
+//
+//				// inserting notification details
+//				Notifications notifications = new Notifications();
+//				notifications.setNotificationDesc("JOB_VENDOR_CREATED - " + employeeNotification.getFirstName());
+//				notifications.setNotificationType(NotificationType.JOB_VENDOR_EDITED);
+//				notifications.setSenderId(empObj.getReportingTo());
+//				notifications.setReceiverId(userDetail.getUserId());
+//				notifications.setSeenStatus(false);
+//				notifications.setCreatedBy(userDetail.getUserId());
+//				notifications.setCreatedAt(new Date());
+//				notifications.setUpdatedBy(userDetail.getUserId());
+//				notifications.setLastUpdatedAt(new Date());
+//
+//				notificationService.createNotification(notifications);
+//				UUID uuid = UUID.randomUUID();
+//				String uuidAsString = uuid.toString();
+//				if (employeeNotification != null) {
+//					String name = null;
+//
+//					HashMap mailDetails = new HashMap();
+//					mailDetails.put("toEmail", employeeNotification.getEmail());
+//					mailDetails.put("subject", name + ", " + "Here's your new PASSWORD");
+//					mailDetails.put("message", "Hi " + name
+//							+ ", \n\n We received a request to reset the password for your Account. \n\n Here's your new PASSWORD Link is: "
+//							+ application_url + "/update-password" + "?key=" + uuidAsString
+//							+ "\n\n Thanks for helpRing us keep your account secure.\n\n Xyram Software Solutions Pvt Ltd.");
+//					emailService.sendMail(mailDetails);
+//				}
+//			}
+			vendor.setName(vendorRequest.getName());
+			vendor.setEmail(vendorRequest.getEmail());
+			vendor.setMobileNumber(vendorRequest.getMobileNumber());
+			vendor.setTypeOfVendor(vendorRequest.getTypeOfVendor());
+			vendor.setPassword(vendorRequest.getPassword());
+			vendorRepository.save(vendor);
+			response.setSuccess(true);
+			response.setMessage("Edit successful");
+
+		} else {
+			response.setSuccess(false);
+			response.setMessage("Vendor Id is required");
+			response.setContent(null);
+		}
+		return response;
+	}
+
+	@Override
+	public ApiResponse getJobVendorType() {
+		ApiResponse response = new ApiResponse(false);
+
+		List<VendorType> jobVendors = vendorRepo.getJobVendorType();
+		Map content = new HashMap();
+		content.put("jobVendorType", jobVendors);
+		if (content != null) {
+			response.setSuccess(true);
+			response.setMessage("VendorType Retrieved Successfully");
+			response.setContent(content);
+		}
+
+		else {
+			response.setSuccess(false);
+			response.setMessage("Could not retrieve data");
+			response.setContent(null);
+		}
+
+		return response;
+	}
+
+	@Override
+	public ApiResponse getEmployeeByReportingId(String reportingId) {
+		ApiResponse response = new ApiResponse(false);
+		List<Map> reportees = employeeRepository.getReportingList(reportingId);
+		Map content = new HashMap();
+		content.put("reportees", reportees);
+		if (content != null) {
+			response.setSuccess(true);
+			response.setMessage("Reportees Retrieved Successfully");
+			response.setContent(content);
+		}
+
+		else {
+			response.setSuccess(false);
+			response.setMessage("Could not retrieve data");
+			response.setContent(null);
+		}
+
+		return response;
+
+	}
+
+	@Override
+	public ApiResponse searchEmployeeByReportingId(String reportingId, String searchString) {
+		ApiResponse response = new ApiResponse(false);
+		List<Map> reportees = employeeRepository.searchEmployeeByReportingId(reportingId, searchString);
+		Map content = new HashMap();
+		content.put("reportees", reportees);
+		if (content != null) {
+			response.setSuccess(true);
+			response.setMessage("Reportees Retrieved Successfully");
+			response.setContent(content);
+		}
+
+		else {
+			response.setSuccess(false);
+			response.setMessage("Could not retrieve data");
+			response.setContent(null);
+		}
+
+		return response;
+
+	}
+
+	@Override
+	public ApiResponse getInfraEmployee(String searchString) {
+		ApiResponse response = new ApiResponse(false);
+		List<Employee> infraUsers = employeeRepository.getInfraEmployee(searchString);
+		Map content = new HashMap();
+		content.put("infraUsers", infraUsers);
+		if (content != null) {
+			response.setSuccess(true);
+			response.setMessage("infraUsers Retrieved Successfully");
+			response.setContent(content);
+		} else {
+			response.setSuccess(false);
+			response.setMessage("Could not retrieve data");
+			response.setContent(null);
+		}
+
+		return response;
+	}
+
+	@Override
+	public ApiResponse getAllRolePermissions(String roleId) {
+		ApiResponse response = new ApiResponse(false);
+		List<RoleMasterTable> rolePermissions = masterRepo.getAllRolePermissions(roleId);
+		Map content = new HashMap();
+		content.put("rolePermission", rolePermissions);
+		if (content != null) {
+			response.setSuccess(true);
+			response.setMessage("infraUsers Retrieved Successfully");
+			response.setContent(content);
+		}
+
+		else {
+			response.setSuccess(false);
+			response.setMessage("Could not retrieve data");
+			response.setContent(null);
+		}
+
+		return response;
+	}
+
+	@Override
+	public ApiResponse updateRolePermissions(String roleId, String modules, RoleMasterTable request) throws Exception {
+		ApiResponse response = new ApiResponse(false);
+
+		if (!empPerConfig.isHavingpersmission("empAdmin")) {
+			response.setSuccess(false);
+			response.setMessage("Not authorised to update Role");
+			return response;
+		}
+
+		RoleMasterTable rolePermissions = masterRepo.updateRolePermissions(roleId, modules);
+		List<UserPermissions> permissionUser = userPermissionConfig.getByRole(roleId);
+		List<String> permissionRole = userPermissionConfig.getDetailsyRole(roleId);
+
+		for (UserPermissions permissions : permissionUser) {
+			if (modules.equals("EMPLOYEES_PERMISSION")) {
+				permissions.setEmpModPermission(request.getPermissions());
+				userPermissionConfig.save(permissions);
+			}
+
+			else if (modules.equals("PROJECTS_PERMISSION")) {
+				permissions.setProjectModPermission(request.getPermissions());
+				userPermissionConfig.save(permissions);
+			}
+
+			else if (modules.equals("TICKETS_PERMISSION")) {
+				permissions.setTicketModPermission(request.getPermissions());
+				userPermissionConfig.save(permissions);
+			}
+
+			else if (modules.equals("JOBOPENINGS_PERMISSION")) {
+				permissions.setJobOpeningModPermission(request.getPermissions());
+				userPermissionConfig.save(permissions);
+			}
+
+			else if (modules.equals("JOBAPPLICATIONS_PERMISSION")) {
+				permissions.setJobAppModPermission(request.getPermissions());
+				userPermissionConfig.save(permissions);
+			}
+
+			else if (modules.equals("JOBINTERVIEWS_PERMISSION")) {
+				permissions.setJobInterviewsModPermission(request.getPermissions());
+				userPermissionConfig.save(permissions);
+			}
+
+			else if (modules.equals("JOBOFFERS_PERMISSION")) {
+				permissions.setJobOfferModPermission(request.getPermissions());
+				userPermissionConfig.save(permissions);
+			}
+
+			else if (modules.equals("JOBVENDORS_PERMISSION")) {
+				permissions.setJobVendorsModPermission(request.getPermissions());
+				userPermissionConfig.save(permissions);
+			}
+		}
+		if (rolePermissions != null) {
+//			rolePermissions.setModules(request.getModules());
+			rolePermissions.setPermissions(request.getPermissions());
+			masterRepo.save(rolePermissions);
+			response.setSuccess(true);
+			response.setMessage("Permissions Updated Successfully");
+		}
+
+		else {
+			response.setSuccess(false);
+			response.setMessage("Could not update data");
+			response.setContent(null);
+		}
+
+		return response;
+	}
+
+	@Override
+	public ApiResponse updateOfflineStatus(String infraUserId) throws Exception {
+		ApiResponse response = new ApiResponse(false);
+
+		if (!empPerConfig.isHavingpersmission("empAdmin")) {
+			response.setSuccess(false);
+			response.setMessage("Not authorised to update offline status");
+			return response;
+		}
+
+		Employee employee = employeeRepository.getById(infraUserId);
+		if (employee != null) {
+			if (currentUser.getUserRole().equals("INFRA_ADMIN")
+					|| employee.getUserCredientials().getUserRole().equals("INFRA_USER")) {
+				employee.setStatus(UserStatus.OFFLINE);
+				employeeRepository.save(employee);
+//				User user = userRepository.getById(employee.getUserCredientials().getId());
+//				user.setStatus(UserStatus.OFFLINE);
+//				userRepository.save(user);
+
+				// Employee employeere=new Employee();z
+
+				response.setSuccess(true);
+				response.setMessage(ResponseMessages.STATUS_UPDATE);
+				response.setContent(null);
+			}
+
+			else {
+				response.setSuccess(false);
+				response.setMessage("Please send valid employee id ");
+				response.setContent(null);
+			}
+		}
+
+		else {
+			response.setSuccess(false);
+			response.setMessage("Invalid Employee Id");
+			response.setContent(null);
+		}
+
+		return response;
+	}
+
+	@Override
+	public ApiResponse getAllEmployeeList() {
+		List<Map> employeeList = employeeRepository.getAllEmployee();
+		Map content = new HashMap();
+		content.put("employeeList", employeeList);
+		ApiResponse response = new ApiResponse(true);
+		response.setSuccess(true);
+		response.setContent(content);
+		response.setMessage("Retrieved successfully");
+		return response;
+	}
+
+	@Override
+	public Map<String, Object> employeeBulkUpload(MultipartFile file) throws Exception {
+
+		Map<String, Object> response = new HashMap<>();
+
+		if (!empPerConfig.isHavingpersmission("empAdmin")) {
+			((ApiResponse) response).setSuccess(false);
+			((ApiResponse) response).setMessage("Not authorised to employee Bulk Upload");
+			return response;
+		}
+
+		if (BulkUploadExcelUtil.hasEmployeeHeader(file)) {
+
+			List<EmployeePojo> employeeList = null;
+			try {
+				employeeList = BulkUploadExcelUtil.excelToEmployeePojo(file.getInputStream());
+			} catch (IOException e) {
+
+				throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "", e);
+			}
+
+			for (EmployeePojo employeeData : employeeList) {
+				User user = new User();
+				user.setCreatedAt(new Date());
+				user.setUsername(employeeData.getEmail());
+				String encodedPassword = new BCryptPasswordEncoder().encode(employeeData.getPassword());
+				user.setPassword(encodedPassword);
+				// Employee employeere=new Employee();
+				Role role = roleRepository.getById(employeeData.getRoleId());
+				if (role != null) {
+					try {
+
+						user.setUserRole(role.getRoleName());
+					} catch (Exception e) {
+						throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
+								role.getRoleName() + " is not a valid status");
+					}
+				} else {
+					throw new ResourceNotFoundException("invalid user role ");
+				}
+				Integer permission = permissionConfig.setDefaultPermissions(user.getUserRole().toString());
+				user.setPermission(permission);
+				user.setStatus(UserStatus.ACTIVE);
+				System.out.println(user.getEmail() + "::" + user.getUsername() + "::" + user.getCreatedAt());
+				User newUser = userRepository.save(user);
+				UserPermissions permissions = new UserPermissions();
+				permissions.setEmpModPermission(permissionConfig.getEMPLOYEES_PERMISSION());
+				permissions.setProjectModPermission(permissionConfig.getPROJECTS_PERMISSION());
+				permissions.setTicketModPermission(permissionConfig.getTICKETS_PERMISSION());
+				permissions.setJobOpeningModPermission(permissionConfig.getJOBOPENINGS_PERMISSION());
+				permissions.setJobInterviewsModPermission(permissionConfig.getJOBINTERVIEWS_PERMISSION());
+				permissions.setJobAppModPermission(permissionConfig.getJOBAPPLICATIONS_PERMISSION());
+				permissions.setJobOfferModPermission(permissionConfig.getJOBOFFERS_PERMISSION());
+				permissions.setJobVendorsModPermission(permissionConfig.getJOBVENDORS_PERMISSION());
+				permissions.setUserId(newUser.getId());
+				userPermissionConfig.save(permissions);
+				Employee emp = new Employee();
+				emp.setCreatedAt(new Date());
+				emp.setCreatedBy(userDetail.getUserId());
+				emp.seteId(employeeData.geteId());
+				emp.setDesignationId(employeeData.getDesignationId());
+				emp.setEmail(employeeData.getEmail());
+				emp.setFirstName(employeeData.getFirstName());
+				emp.setLastName(employeeData.getLastName());
+				emp.setLastUpdatedAt(new Date());
+				emp.setLocation(employeeData.getLocation());
+				emp.setMiddleName(employeeData.getMiddleName());
+				emp.setMobileNumber(employeeData.getMobileNumber());
+				emp.setPassword(employeeData.getPassword());
+				emp.setPosition(employeeData.getPosition());
+				emp.setProfileUrl(employeeData.getProfileUrl());
+				emp.setReportingTo(employeeData.getReportingTo());
+				emp.setRoleId(employeeData.getRoleId());
+				emp.setUpdatedBy(userDetail.getUserId());
+				/*
+				 * User use = userRepository.getUserByIds(employeeData.getUserId()); if (use !=
+				 * null) {
+				 */ emp.setUserCredientials(user);
+
+				// emp.setUserCredientials(employeeData.getUserId());
+				CompanyWings wing = wingRepo.getWingByIds(employeeData.getWing_id());
+				if (wing != null) {
+
+					emp.setWings(wing);
+				}
+				employeeRepository.save(emp);
+				response.put("success", "Blocks are updated successfully");
+			}
+		} else {
+			throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "header data passed in xls is invalid ");
+		}
+
+		return response;
+	}
+
+	public ApiResponse getAllEmployeeDefaultPermissions() throws Exception {
+		ApiResponse response = new ApiResponse(true);
+		if (!empPerConfig.isHavingpersmission("empAdmin")) {
+			response.setSuccess(false);
+			response.setMessage("Not authorised");
+		} else {
+			Map content = new HashMap();
+			List<EmpDefaultPermissions> permisssionList = empDefaultPermissionRepo.getAllDefaultPermissions();
+//			EmployeePermission ep = empPermissionRepo.getbyUserId(userId);
+//			if (ep != null) {
+//				content.put("permissions", ep);
+//			}
+			content.put("list", permisssionList);
+			response.setSuccess(true);
+			response.setContent(content);
+			response.setMessage("Retrieved successfully");
+		}
+		return response;
+	}
+
+	@Override
+	public ApiResponse updateEmployeeMobileNo(String userId, String mobileNumber) {
+		// TODO Auto-generated method stub
+		ApiResponse response = new ApiResponse(false);
+		if (mobileNumber == null || mobileNumber.equals("")) {
+			response.setSuccess(false);
+			response.setMessage("Mobile Number is mandatory");
+			return response;
+		} else if (mobileNumber.length() != 10) {
+			response.setSuccess(false);
+			response.setMessage("Mobile Number should have 10 digits");
+			return response;
+		}
+		Employee employee = employeeRepository.getEmpByUserId(currentUser.getUserId());
+		User user = userRepository.getById(employee.getUserCredientials().getId());
+		if (employee != null) {
+			System.out.println(employee);
+			employee.setMobileNumber(mobileNumber);
+			employeeRepository.save(employee);
+			response.setSuccess(true);
+			response.setMessage("Mobile Number updated Successfully");
+			return response;
+		} else {
+			response.setSuccess(false);
+			response.setMessage("Mobile Number not updated");
+		}
+		return response;
+	}
+
+	@Override
+	public ApiResponse getEmployeeCount() throws Exception {
+		ApiResponse response = new ApiResponse(false);
+
+		long employeeCount;
+
+		if (!empPerConfig.isHavingpersmission("empAdmin")) {
+			employeeCount = employeeRepository.activeEmployeeCount();
+		} else {
+			employeeCount = employeeRepository.allEmployeeCount();
+		}
+
+		Map content = new HashMap();
+		content.put("Employee Count", employeeCount);
+		// ApiResponse response = new ApiResponse(true);
+		response.setSuccess(true);
+		response.setMessage("Employee Count Retrieved Successfully");
+		response.setContent(content);
+		return response;
+	}
+
+	@Override
+	public ApiResponse getHrEmployees(String searchString) throws Exception {
+		// TODO Auto-generated method stub
+		ApiResponse response = new ApiResponse(false);
+		if (!empPerConfig.isHavingpersmission("hrCalenderAccess")) {
+			response.setSuccess(false);
+			response.setMessage("Not Authorised");
+			return response;
+		}
+		List<Map> hrEmpList = employeeRepository.getHrEmployee(searchString);
+		Map content = new HashMap();
+		content.put("hrList", hrEmpList);
+		response.setSuccess(true);
+		response.setContent(content);
+		response.setMessage("Retrieved successfully");
+		return response;
+
+	}
+
+	@Override
+	public ApiResponse createEmployeeDefaultPermission(EmpDefaultPermissions empDefaultPermissions) throws Exception {
+		ApiResponse response = new ApiResponse(false);
+
+		response = validatePermission(empDefaultPermissions, null);
+		if (response.getMessage() != null && response.getMessage() != "") {
+			return response;
+		}
+
+		empDefaultPermissionRepo.save(empDefaultPermissions);
+
+		response.setMessage("Permission added successfully");
+		response.setSuccess(true);
+		return response;
+	}
+
+	@Override
+	public ApiResponse editEmployeeDefaultPermission(EmpDefaultPermissions empDefaultPermissions) throws Exception {
+		ApiResponse response = new ApiResponse(false);
+
+		response = validatePermission(empDefaultPermissions, empDefaultPermissions.getName());
+		if (response.getMessage() != null && response.getMessage() != "") {
+			return response;
+		}
+		EmpDefaultPermissions edp = empDefaultPermissionRepo.getPermissionByName(empDefaultPermissions.getName());
+
+		edp.setDescription(empDefaultPermissions.getDescription());
+		edp.setEditable(empDefaultPermissions.isEditable());
+		edp.setName(empDefaultPermissions.getName());
+
+		empDefaultPermissionRepo.save(edp);
+
+		response.setMessage("Permission updated successfully");
+		response.setSuccess(true);
+
+		return response;
+	}
+
+	private ApiResponse validatePermission(EmpDefaultPermissions empDefaultPermissions, String name) {
+		ApiResponse response = new ApiResponse(true);
+
+		if (empDefaultPermissions.getName() == null || empDefaultPermissions.getName().isEmpty()) {
+			throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Name should not be empty");
+
+		}
+
+		if (empDefaultPermissions.getDescription() == null || empDefaultPermissions.getDescription().isEmpty()) {
+			throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Description should not be empty");
+
+		}
+
+		EmpDefaultPermissions edp = empDefaultPermissionRepo.getPermissionByName(empDefaultPermissions.getName());
+
+		if (edp != null) {
+
+			if (name != null) {
+
+				if (!name.equals(edp.getName())) {
+					response.setMessage("Permission already exists");
+					response.setSuccess(false);
+					return response;
+				}
+			} else {
+				response.setMessage("Permission already exists");
+				response.setSuccess(false);
+				return response;
+			}
+
+		}
+
+		response.setSuccess(true);
+		return response;
+	}
+
+	@Override
+	public ApiResponse logoutSession() throws Exception {
+		ApiResponse response = new ApiResponse(true);
+
+		LoginHistory loginHistory = new LoginHistory();
+		loginHistory.setUserId(currentUser.getUserId());
+		loginHistory.setLogoutTime(new Date());
+		loginHistoryRepository.save(loginHistory);
+
+		response.setSuccess(true);
+		response.setMessage("Logged out successfully");
+		return response;
+	}
+
+	@Override
+	public ApiResponse getLoginHistory(String userId) throws Exception {
+
+		ApiResponse response = new ApiResponse(true);
+
+		if (!empPerConfig.isHavingpersmission("empLoginHis")) {
+			response.setSuccess(false);
+			response.setMessage("Not Authorised to see details");
+			return response;
+		}
+
+		Employee employee = employeeRepository.getbyUserId(userId);
+		if (employee == null) {
+			response.setSuccess(false);
+			response.setMessage("Invalid employee id");
+			return response;
+		}
+
+		List<LoginHistory> loginHistories = loginHistoryRepository.getLoginHistoryById(userId);
+		response.setSuccess(true);
+		response.setMessage("Details retrieved");
+		HashMap contHashMap = new HashMap<>();
+		contHashMap.put("loginHistories", loginHistories);
+		response.setContent(contHashMap);
+
+		return response;
+	}
+
+	@Override
+	public ApiResponse getSelfLoginHistory() throws Exception {
+		ApiResponse response = new ApiResponse(true);
+
+		String userId = currentUser.getUserId();
+		List<LoginHistory> loginHistories = loginHistoryRepository.getLoginHistoryById(userId);
+		response.setSuccess(true);
+		response.setMessage("Details retrieved successfully");
+		HashMap contHashMap = new HashMap<>();
+		contHashMap.put("loginHistories", loginHistories);
+		response.setContent(contHashMap);
+
+		return response;
+	}
+
+	@Override
+	public ApiResponse createTechnicalVendor(JobVendorDetails vendorDetails) throws Exception {
+		ApiResponse response = new ApiResponse(false);
+
+		if (!empPerConfig.isHavingpersmission("vendorAccess")) {
+			response.setSuccess(false);
+			response.setMessage("Not authorised to create JobVendor");
+			return response;
+		}
+
+		// JobVendorDetails jobVendorDetails =
+		// jobVendorRepository.getEmail(vendorDetails.getEmail());
+
+		if (vendorDetails.getEmail() == null || vendorDetails.getEmail().equals("")) {
+			throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "MailId is mandatory");
+		}
+		// if(vendorDetails.getTypeOfVendor() == null )
+//		VendorType vendorType = vendorTypeRepository.getVendorType(vendorDetails.getTypeOfVendor());
+//		if (vendorType == null) {
+//			throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "vendor is not Exists");
+//		}
+
+		JobVendorDetails jobVendorDetails = jobVendorRepository.getEmail(vendorDetails.getEmail());
+
+		if (jobVendorDetails != null) {
+			throw new ResponseStatusException(HttpStatus.BAD_REQUEST, " MailId already exists!");
+		}
+
+		if (!emailValidation(vendorDetails.getEmail())) {
+			throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Invalid EmailId");
+
+		}
+
+		System.out.println("username::" + currentUser.getName());
+
+		try {
+			User user = new User();
+			user.setUsername(vendorDetails.getEmail());
+			String encodedPassword = new BCryptPasswordEncoder().encode(vendorDetails.getPassword());
+			user.setPassword(encodedPassword);
+
+			user.setStatus(UserStatus.ACTIVE);
+			System.out.println(user.getEmail() + "::" + user.getUsername() + "::" + user.getCreatedAt());
+			userRepository.save(user);
+			UserPermissions permissions = new UserPermissions();
+			permissions.setEmpModPermission(permissionConfig.getEMPLOYEES_PERMISSION());
+			permissions.setProjectModPermission(permissionConfig.getPROJECTS_PERMISSION());
+			permissions.setTicketModPermission(permissionConfig.getTICKETS_PERMISSION());
+			permissions.setJobOpeningModPermission(permissionConfig.getJOBOPENINGS_PERMISSION());
+			permissions.setJobInterviewsModPermission(permissionConfig.getJOBINTERVIEWS_PERMISSION());
+			permissions.setJobAppModPermission(permissionConfig.getJOBAPPLICATIONS_PERMISSION());
+			permissions.setJobOfferModPermission(permissionConfig.getJOBOFFERS_PERMISSION());
+			permissions.setJobVendorsModPermission(permissionConfig.getJOBVENDORS_PERMISSION());
+			permissions.setUserId(user.getId());
+			userPermissionConfig.save(permissions);
+
+			vendorDetails.setUserCredientials(user);
+			vendorDetails.setProfileUrl(ticketAttachmentBaseUrl + "/user-default-pic.png");
+			JobVendorDetails vendorNew = vendorRepository.save(vendorDetails);
+			if (vendorNew != null) {
+				Employee empObj = new Employee();
+				List<Employee> EmployeeByRole = employeeRepository.getVendorNotification();
+
+				for (Employee employeeNotification : EmployeeByRole) {
+					Map request = new HashMap<>();
+					request.put("id", employeeNotification.geteId());
+					request.put("uid", employeeNotification.getUserCredientials().getUid());
+					request.put("title", "JOB_VENDOR_CREATED");
+					// request.put("body", "JOB_VENDOR_CREATED - " +
+					// employeeNotification.getRoleId());
+					pushNotificationCall.restCallToNotification(pushNotificationRequest.PushNotification(request, 12,
+							NotificationType.JOB_VENDOR_CREATED.toString()));
+
+					// inserting notification details
+					Notifications notifications = new Notifications();
+					notifications.setNotificationDesc("JOB_VENDOR_CREATED - " + employeeNotification.getFirstName());
+					notifications.setNotificationType(NotificationType.JOB_VENDOR_CREATED);
+					notifications.setSenderId(empObj.getReportingTo());
+					notifications.setReceiverId(userDetail.getUserId());
+					notifications.setSeenStatus(false);
+					notifications.setCreatedBy(userDetail.getUserId());
+					notifications.setCreatedAt(new Date());
+					notifications.setUpdatedBy(userDetail.getUserId());
+					notifications.setLastUpdatedAt(new Date());
+
+					notificationService.createNotification(notifications);
+					UUID uuid = UUID.randomUUID();
+					String uuidAsString = uuid.toString();
+					if (employeeNotification != null) {
+						String name = null;
+
+						HashMap mailDetails = new HashMap();
+						mailDetails.put("toEmail", employeeNotification.getEmail());
+						mailDetails.put("subject", name + ", " + "Here's your new PASSWORD");
+						mailDetails.put("message", "Hi " + name
+								+ ", \n\n We received a request to reset the password for your Account. \n\n Here's your new PASSWORD Link is: "
+								+ application_url + "/update-password" + "?key=" + uuidAsString
+								+ "\n\n Thanks for helpRing us keep your account secure.\n\n Xyram Software Solutions Pvt Ltd.");
+						emailService.sendMail(mailDetails);
+					}
+				}
+				response.setSuccess(true);
+				response.setMessage(ResponseMessages.TECHNICAL_VENDOR_CREATED);
+				Map content = new HashMap();
+				content.put("vendorId", vendorNew.getvId());
+				response.setContent(content);
+			}
+		} catch (Exception e) {
+			System.out.println("Error Occured :: " + e.getMessage());
+		}
+
+		return response;
+	}
+
+	@Override
+	public ApiResponse editTechnicalVendor(String vendorId, JobVendorDetails vendorRequest) throws Exception {
+		// TODO Auto-generated method stub
+		ApiResponse response = new ApiResponse(false);
+
+		if (!empPerConfig.isHavingpersmission("vendorAccess")) {
+			response.setSuccess(false);
+			response.setMessage("Not authorised to edit JobVendor");
+			return response;
+		}
+
+		if (vendorRequest.getEmail() == null || vendorRequest.getEmail().equals("")) {
+			throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Email Id is mandatory");
+		}
+		if (!emailValidation(vendorRequest.getEmail())) {
+			throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Invalid Email Id");
+
+		}
+
+		JobVendorDetails vendor = vendorRepository.getById(vendorId);
+
+		String email = vendorRepository.filterEmail(vendorRequest.getEmail());
+
+		if (!vendor.getEmail().equals(vendorRequest.getEmail()) && email != null) {
+
+			response.setSuccess(false);
+			response.setMessage(ResponseMessages.MAIL_ID_EXI);
+			return response;
+
+		}
+
+		if (vendor != null) {
+			Employee empObj = new Employee();
+			List<Employee> EmployeeByRole = employeeRepository.getVendorNotification();
+
+			for (Employee employeeNotification : EmployeeByRole) {
+				Map request = new HashMap<>();
+				request.put("id", employeeNotification.geteId());
+				request.put("uid", employeeNotification.getUserCredientials().getUid());
+				request.put("title", "JOB_VENDOR_EDITED");
+				request.put("body", "JOB_VENDOR_EDITED - " + employeeNotification.getRoleId());
+				pushNotificationCall.restCallToNotification(pushNotificationRequest.PushNotification(request, 12,
+						NotificationType.JOB_VENDOR_CREATED.toString()));
+
+				// inserting notification details
+				Notifications notifications = new Notifications();
+				notifications.setNotificationDesc("JOB_VENDOR_CREATED - " + employeeNotification.getFirstName());
+				notifications.setNotificationType(NotificationType.JOB_VENDOR_EDITED);
+				notifications.setSenderId(empObj.getReportingTo());
+				notifications.setReceiverId(userDetail.getUserId());
+				notifications.setSeenStatus(false);
+				notifications.setCreatedBy(userDetail.getUserId());
+				notifications.setCreatedAt(new Date());
+				notifications.setUpdatedBy(userDetail.getUserId());
+				notifications.setLastUpdatedAt(new Date());
+
+				notificationService.createNotification(notifications);
+				UUID uuid = UUID.randomUUID();
+				String uuidAsString = uuid.toString();
+				if (employeeNotification != null) {
+					String name = null;
+
+					HashMap mailDetails = new HashMap();
+					mailDetails.put("toEmail", employeeNotification.getEmail());
+					mailDetails.put("subject", name + ", " + "Here's your new PASSWORD");
+					mailDetails.put("message", "Hi " + name
+							+ ", \n\n We received a request to reset the password for your Account. \n\n Here's your new PASSWORD Link is: "
+							+ application_url + "/update-password" + "?key=" + uuidAsString
+							+ "\n\n Thanks for helpRing us keep your account secure.\n\n Xyram Software Solutions Pvt Ltd.");
+					emailService.sendMail(mailDetails);
+				}
+			}
+			vendor.setName(vendorRequest.getName());
+			vendor.setEmail(vendorRequest.getEmail());
+			vendor.setMobileNumber(vendorRequest.getMobileNumber());
+			vendor.setTypeOfVendor(vendorRequest.getTypeOfVendor());
+			vendor.setPassword(vendorRequest.getPassword());
+			vendorRepository.save(vendor);
+			response.setSuccess(true);
+			response.setMessage("Edit successful");
+
+		} else {
+			response.setSuccess(false);
+			response.setMessage("Vendor Id is required");
+			response.setContent(null);
+		}
+		return response;
+	}
+
+//	@Override
+//	public ApiResponse getAllStationaryVendor(Pageable pageable) throws Exception {
+//
+//		ApiResponse response = new ApiResponse(false);
+//		Page<Map> jobVendorDetails = vendorRepository.getAllStationaryVendor(pageable);
+//		Map content = new HashMap();
+//		content.put("stationaryVendorDetails", jobVendorDetails);
+//		if (content != null) {
+//			response.setSuccess(true);
+//			response.setMessage("Retrieved Successfully");
+//			response.setContent(content);
+//		}
+//
+//		else {
+//			response.setSuccess(false);
+//			response.setMessage("Could not retrieve data");
+//			response.setContent(null);
+//		}
+//
+//		return response;
+//
+//	}
+
+//	@Override
+//	public ApiResponse getAllTechnicalVendors(Pageable pageable) throws Exception {
+//		ApiResponse response = new ApiResponse();
+//		Page<Map> jobVendorDetails = vendorRepository.getAllTechnicalVendor(pageable);
+//		Map content = new HashMap();
+//		content.put("techincalVendorDetails", jobVendorDetails);
+//		if (content != null) {
+//			response.setSuccess(true);
+//			response.setMessage("Retrieved Successfully");
+//			response.setContent(content);
+//		} else {
+//			response.setSuccess(false);
+//			response.setMessage("Could not retrieve data");
+//		}
+//		return response;
+//	}
+
+	@Override
+	public ApiResponse getAllAnniversary() throws Exception {
+		ApiResponse response = new ApiResponse();
+		//List<Map> anniversaryList = employeeRepository.getLastThirtyDaysAnniversary();
+		List<Map> anniversaryListSevenDays = employeeRepository.getNextSevenDaysAnniversary();
+		List<Map> anniversaryListToday = employeeRepository.anniversaryListToday();
+		Map content = new HashMap();
+		//content.put("anniversaryList", anniversaryList);
+		content.put("nextSevenDaysAnniversaryList", anniversaryListSevenDays);
+		content.put("todayAnniversaryList", anniversaryListToday);
+		if (content != null) {
+			response.setSuccess(true);
+			response.setMessage("Retrieved Successfully");
+			response.setContent(content);
+		} else {
+			response.setSuccess(false);
+			response.setMessage("Could not retrieve data");
+		}
+		return response;
+	}
+
+	@Override
+	public ApiResponse getAllTodayBirthday() {
+		ApiResponse response = new ApiResponse();
+		List<Map> getTodayBirthdays = employeeRepository.getTodayBirthdays();
+		Map content = new HashMap();
+		LocalDate currentDate = LocalDate.now();
+		LocalDate endDate = currentDate.plusDays(7);
+		List<Map> getSevenDaysBirthdays = employeeRepository.findEmployeesByBirthdayRange(currentDate, endDate);
+		content.put("TodayBirthdayList", getTodayBirthdays);
+		content.put("getSevenDaysBirthdays", getSevenDaysBirthdays);
+		if (content != null) {
+			response.setSuccess(true);
+			response.setMessage("Retrieved Successfully");
+			response.setContent(content);
+		} else {
+			response.setSuccess(false);
+			response.setMessage("Could not retrieve data");
+		}
+		return response;
+	}
+//	@Override
+//	 public List<Employee> getNextSevenDaysBirthdays() {
+//	        LocalDate currentDate = LocalDate.now();
+//	        LocalDate endDate = currentDate.plusDays(7);
+//	        return employeeRepository.findEmployeesByBirthdayRange(currentDate, endDate);
+//	    }
+
+	@Override
+	public ApiResponse searchEmployeeByTeam(String searchString) throws Exception {
+		ApiResponse response = new ApiResponse(false);
+		if (searchString.trim().isEmpty() || searchString.trim().equals("")) {
+			throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Search string should not be empty");
+		}
+		// Map employee = employeeRepository.getEmployeeBYId(searchString);
+		// List<Map> reportees = employeeRepository.getReportingList(employeeId);
+		List<Map> employeeList = new ArrayList<>();
+		if (!empPerConfig.isHavingpersmission("empAdmin") && !empPerConfig.isHavingpersmission("prjAdmin")) {
+			Employee employee = employeeRepository.getEmpByUserId(currentUser.getUserId());
+			employeeList = employeeRepository.searchActiveEmployees(searchString, employee.getReportingTo());
+		} else {
+			employeeList = employeeRepository.searchEmployees(searchString, currentUser.getUserId());
+
+		}
+
+		Map content = new HashMap();
+		if (employeeList.size() > 0) {
+			content.put("EmployeeList", employeeList);
+			response.setSuccess(true);
+			response.setMessage("Employee Retrieved successfully");
+			response.setContent(content);
+		} else {
+			content.put("EmployeeList", employeeList);
+			response.setSuccess(false);
+			response.setContent(content);
+		}
+
+		return response;
+
+	}
+	
+	
+
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+//import org.springframework.beans.factory.annotation.Autowired;
+//import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
+//import org.springframework.security.crypto.password.PasswordEncoder;
+//import org.springframework.stereotype.Service;
+//
+//import com.example.XyhubEmployee.Entity.Employee;
+//import com.example.XyhubEmployee.Repository.EmployeeRepository;
+//import com.example.XyhubEmployee.Repository.UserRepository;
+//import com.example.XyhubEmployee.Service.EmployeeService;
+//import com.example.XyhubEmployee.admin.model.User;
+//
+//@Service
+//public class EmpoloyeeServiceImpl implements EmployeeService {
+//
+//	@Autowired
+//	EmployeeRepository employeeRepository;
+//
+//	@Autowired
+//	PasswordEncoder passwordEncoder;
+//
+//	@Autowired
+//	UserRepository userRepository;
+//	public Employee addemployee(Employee employee) throws Exception {
+//		System.out.println(this.passwordEncoder.encode(employee.getPassword()));
+//
+//		User user = new User();
+//		user.setEmail(employee.getEmail());
+//		user.setUsername(employee.getEmail());
+//		user.setPassword(this.passwordEncoder.encode(employee.getPassword()));
+//		userRepository.save(user);
+//		employee.setPassword(this.passwordEncoder.encode(employee.getPassword()));
+//		return employeeRepository.save(employee);
+//
+//	}
+//
+//}

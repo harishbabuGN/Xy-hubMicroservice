@@ -1,0 +1,5 @@
+package com.example.XyhubAuthentication.util;
+
+public class AuthConstants {
+
+}

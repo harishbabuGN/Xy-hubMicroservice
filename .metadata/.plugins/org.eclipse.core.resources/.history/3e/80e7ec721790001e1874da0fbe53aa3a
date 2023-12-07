@@ -1,0 +1,380 @@
+package com.example.XyhubEmployee.Service.impl;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.stereotype.Service;
+
+import com.example.XyhubEmployee.Entity.Employee;
+import com.example.XyhubEmployee.Service.EmployeeService;
+import com.example.XyhubEmployee.apiresponses.ApiResponse;
+
+@Service
+public class EmpoloyeeServiceImpl implements EmployeeService {
+
+	private static final Logger logger = LoggerFactory.getLogger(EmpoloyeeServiceImpl.class);
+
+	@Autowired
+	EmployeeRepository employeeRepository;
+
+//	@Autowired
+//	ProjectAttachmentRepository projectAttachmentRepository;
+//	@Autowired
+//	PermissionRepository permissionRepository;
+//
+//	@Autowired
+//	UserRepository userRepository;
+//
+//	@Autowired
+//	RoleRepository roleRepository;
+//
+//	@Autowired
+//	DesignationRepository designationRepository;
+//
+//	@Autowired
+//	CurrentUser currentUser;
+//
+//	@Autowired
+//	ProjectServiceImpl ProjectSerImpl;
+//
+//	@Value("${xyhub-preview}")
+//	private String previewKey;
+//	
+//	@Autowired
+//	ProjectMemberRepository projectMemberRepository;
+//
+//	@Autowired
+//	VendorRepository vendorRepository;
+//
+//	@Autowired
+//	PermissionConfig permissionConfig;
+//
+//	@Autowired
+//	UserPermissionRepository userPermissionConfig;
+//
+//	@Autowired
+//	RoleMasterRepository masterRepo;
+//
+//	@Autowired
+//	VendorTypeRepository vendorRepo;
+//
+//	@Autowired
+//	JobVendorRepository jobVendorRepository;
+//
+//	@Autowired
+//	CompanyLocationRepository companyLocationRepository;
+
+//	@Value("${file-key}")
+//	private String keyName;
+//
+//	@Autowired
+//	S3BucketStorageService s3BucketStorageService;
+
+	@Autowired
+	EmpoloyeeServiceImpl employeeServiceImpl;
+//	@Autowired
+//	PushNotificationCall pushNotificationCall;
+//	@Autowired
+//	PushNotificationRequest pushNotificationRequest;
+//
+//	@Autowired
+//	CurrentUser userDetail;
+//
+//	@Autowired
+//	NotificationService notificationService;
+//
+//	@Autowired
+//	FileTransferService fileUploadService;
+//
+//	@Autowired
+//	EmailService emailService;
+//
+//	@Autowired
+//	VendorTypeRepository vendorTypeRepository;
+//
+//	@Autowired
+//	TicketAttachmentService attachmentService;
+//
+//	@Autowired
+//	CompanyWingsRepository wingRepo;
+//
+//	@Autowired
+//	EmployeePermissionRepository empPermissionRepo;
+//
+//	@Autowired
+//	EmpDefaultPerRepository empDefaultPermissionRepo;
+//
+//	@Autowired
+//	EmployeePermissionConfig empPerConfig;
+//
+//	@Autowired
+//	EmployeeSalaryRepository employeeSalaryRepository;
+//
+//	@Autowired
+//	EmployeeBankRepository employeeBankRepository;
+
+	@Value("${APPLICATION_URL}")
+	private String application_url;
+
+	@Value("${image-base-url}")
+	private String ticketAttachmentBaseUrl;
+
+//	@Autowired
+//	LoginHistoryRepository loginHistoryRepository;
+//
+//	static ChannelSftp channelSftp = null;
+//	static Session session = null;
+//	static Channel channel = null;
+//	static String PATHSEPARATOR = "/";
+
+//	private static Map<String, com.xyram.ticketingTool.admin.model.User> userCache = new HashMap<>();
+
+	@SuppressWarnings("unused")
+	@Override
+	public ApiResponse addemployee(Employee employee) throws Exception {
+
+		ApiResponse response = new ApiResponse(false);
+
+		if (!empPerConfig.isHavingpersmission("empAdmin")) {
+			response.setSuccess(false);
+			response.setMessage("Not authorised to create employee");
+			return response;
+		}
+
+		response = validateEmployee(employee);
+
+		if (response.getMessage() != null && response.getMessage() != "") {
+			return response;
+		}
+		// Email Validation starts here
+
+		if (employee.getEmail() == null || employee.getEmail().equals("")) {
+			response.setSuccess(false);
+			response.setMessage(ResponseMessages.MAILID_MAN);
+			return response;
+		}
+		if (!emailValidation(employee.getEmail())) {
+			response.setSuccess(false);
+			response.setMessage(ResponseMessages.INVAL_MAIL_ID);
+			return response;
+		}
+
+		String email = employeeRepository.filterByEmail(employee.getEmail());
+		if (email != null) {
+			response.setSuccess(false);
+			response.setMessage(ResponseMessages.MAIL_ID_EXI);
+			return response;
+		}
+
+		String userId = userRepository.getUserId(employee.getEmail());
+		if (userId != null) {
+			response.setSuccess(false);
+			response.setMessage(ResponseMessages.MAIL_ID_EXI);
+			return response;
+		}
+
+		System.out.println("username::" + currentUser.getName());
+
+//		ApiResponse salaryResponse = validateEmployeeSalary(employee);
+//		
+//		if (salaryResponse.getMessage() != null && salaryResponse.getMessage() != "") {
+//			return salaryResponse;
+//		}
+
+//		if (response.isSuccess()) {
+		try {
+
+			if (!employeeRepository.getbyEmpId(employee.geteId()).isEmpty()) {
+
+				response.setSuccess(false);
+				response.setMessage(ResponseMessages.EMP_CODE);
+				return response;
+			}
+
+			User user = new User();
+			user.setUsername(employee.getEmail());
+			String encodedPassword = new BCryptPasswordEncoder().encode(employee.getPassword());
+			user.setPassword(encodedPassword);
+
+			employee.setFirstName(employee.getFirstName().trim());
+			String name = employee.getFirstName();
+			String firstLetter = name.substring(0, 1);
+			String remainingLetters = name.substring(1, name.length());
+			firstLetter = firstLetter.toUpperCase();
+			employee.setFirstName(firstLetter + remainingLetters);
+
+			user.setName(employee.getFirstName() + " " + employee.getLastName());
+
+			// Employee employeere=new Employee();
+//				Role role = roleRepository.getById(employee.getRoleId());
+//				user.setUserRole(role != null ? role.getRoleName() : null);
+
+			Integer permission = permissionConfig.setDefaultPermissions("INFRA_ADMIN");
+			user.setPermission(permission);
+			user.setStatus(UserStatus.ACTIVE);
+			System.out.println(user.getEmail() + "::" + user.getUsername() + "::" + user.getCreatedAt());
+			User newUser = userRepository.save(user);
+			UserPermissions permissions = new UserPermissions();
+			permissions.setEmpModPermission(permissionConfig.getEMPLOYEES_PERMISSION());
+			permissions.setProjectModPermission(permissionConfig.getPROJECTS_PERMISSION());
+			permissions.setTicketModPermission(permissionConfig.getTICKETS_PERMISSION());
+			permissions.setJobOpeningModPermission(permissionConfig.getJOBOPENINGS_PERMISSION());
+			permissions.setJobInterviewsModPermission(permissionConfig.getJOBINTERVIEWS_PERMISSION());
+			permissions.setJobAppModPermission(permissionConfig.getJOBAPPLICATIONS_PERMISSION());
+			permissions.setJobOfferModPermission(permissionConfig.getJOBOFFERS_PERMISSION());
+			permissions.setJobVendorsModPermission(permissionConfig.getJOBVENDORS_PERMISSION());
+			permissions.setUserId(newUser.getId());
+			userPermissionConfig.save(permissions);
+			employee.setCreatedBy(currentUser.getUserId());
+			employee.setUpdatedBy(currentUser.getUserId());
+			CompanyWings wing = wingRepo.getWingById(employee.getWings().getId());
+			employee.setWings(wing);
+			employee.setCreatedAt(new Date());
+			employee.setLastUpdatedAt(new Date());
+			employee.setUserCredientials(user);
+			employee.setProfileUrl(ticketAttachmentBaseUrl + "/user-default-pic.png");
+			employee.setDateOfJoin(employee.getDateOfJoin());
+			employee.setDateOfBirth(employee.getDateOfBirth());
+			employee.setAlternateMobileNo(employee.getAlternateMobileNo());
+			employee.setGender(employee.getGender());
+			Employee employeeNew = employeeRepository.save(employee);
+			User useredit = userRepository.getById(user.getId());
+			useredit.setScopeId(employeeNew.getUserCredientials().getId());
+			// user.setUserRole("HR"); // setting default role
+			userRepository.save(useredit);
+
+			// New Permissions
+			EmployeePermission empPermission = new EmployeePermission();
+			empPermission.setUserId(employeeNew.getUserCredientials().getId());
+			empPermissionRepo.save(empPermission);
+
+			// Salary Create
+//				EmployeeSalary employeeSalary = new EmployeeSalary();
+//				employeeSalary.setEmployeeId(employeeNew.getUserCredientials().getId());
+//				employeeSalary.setSalStatus(SalaryStatus.ACTIVE);
+//				employeeSalary
+//						.setGrossSalary(AESEncryptionDecryption.encrypt(employee.getEmployeeSalary().getGrossSalary()));
+//				employeeSalary
+//						.setNetSalary(AESEncryptionDecryption.encrypt(employee.getEmployeeSalary().getNetSalary()));
+//				employeeSalary.setCreatedBy(currentUser.getUserId());
+//				employeeSalary.setUpdatedBy(currentUser.getUserId());
+//				employeeSalary.setCreatedAt(new Date());
+//				employeeSalary.setLastUpdatedAt(new Date());
+//				employeeSalaryRepository.save(employeeSalary);
+
+			// sending notification starts here..!
+
+			List<Map> EmployeeList = employeeRepository.getEmployeeBYReportingToId(employee.getReportingTo());
+
+			if (!EmployeeList.isEmpty()) {
+
+				for (Map employeeNotification : EmployeeList) {
+					Map request = new HashMap<>();
+					request.put("id", employeeNotification.get("id"));
+					request.put("uid", employeeNotification.get("uid"));
+					request.put("title", "EMPLOYEE CREATED");
+					request.put("body", " employee Created - " + employeeNew.getFirstName());
+					pushNotificationCall.restCallToNotification(pushNotificationRequest.PushNotification(request, 12,
+							NotificationType.EMPLOYEE_CREATED.toString()));
+
+				}
+				// inserting notification details
+				Notifications notifications = new Notifications();
+				notifications.setNotificationDesc("employee created - " + employeeNew.getFirstName());
+				notifications.setNotificationType(NotificationType.EMPLOYEE_CREATED);
+				notifications.setSenderId(employeeNew.getReportingTo());
+				notifications.setReceiverId(userDetail.getUserId());
+				notifications.setSeenStatus(false);
+				notifications.setCreatedBy(userDetail.getUserId());
+				notifications.setCreatedAt(new Date());
+				notifications.setUpdatedBy(userDetail.getUserId());
+				notifications.setLastUpdatedAt(new Date());
+
+				notificationService.createNotification(notifications);
+			}
+			UUID uuid = UUID.randomUUID();
+			String uuidAsString = uuid.toString();
+
+			if (employeeNew != null & false) {
+				String name2 = null;
+
+				HashMap mailDetails = new HashMap();
+				mailDetails.put("toEmail", employeeNew.getEmail());
+				mailDetails.put("subject", name + ", " + "Here's your new PASSWORD");
+				mailDetails.put("message", "Hi " + name2
+						+ ", \n\n We received a request to reset the password for your Account. \n\n Here's your new PASSWORD Link is: "
+						+ application_url + "/update-password" + "?key=" + uuidAsString
+						+ "\n\n Thanks for helping us keep your account secure.\n\n Xyram Software Solutions Pvt Ltd.");
+				emailService.sendMail(mailDetails);
+			}
+			// end of the notification part...!
+
+			response.setSuccess(true);
+			response.setMessage(ResponseMessages.EMPLOYEE_ADDED);
+			Map content = new HashMap();
+			content.put("employeeId", employeeNew.geteId());
+			response.setContent(content);
+
+		} catch (ResponseStatusException re) {
+			throw new ResponseStatusException(re.getStatus(), re.getReason());
+		} catch (Exception e) {
+			throw new ResponseStatusException(HttpStatus.BAD_GATEWAY, e.getMessage());
+		}
+
+		return response;
+
+//		}
+	}
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+//import org.springframework.beans.factory.annotation.Autowired;
+//import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
+//import org.springframework.security.crypto.password.PasswordEncoder;
+//import org.springframework.stereotype.Service;
+//
+//import com.example.XyhubEmployee.Entity.Employee;
+//import com.example.XyhubEmployee.Repository.EmployeeRepository;
+//import com.example.XyhubEmployee.Repository.UserRepository;
+//import com.example.XyhubEmployee.Service.EmployeeService;
+//import com.example.XyhubEmployee.admin.model.User;
+//
+//@Service
+//public class EmpoloyeeServiceImpl implements EmployeeService {
+//
+//	@Autowired
+//	EmployeeRepository employeeRepository;
+//
+//	@Autowired
+//	PasswordEncoder passwordEncoder;
+//
+//	@Autowired
+//	UserRepository userRepository;
+//	public Employee addemployee(Employee employee) throws Exception {
+//		System.out.println(this.passwordEncoder.encode(employee.getPassword()));
+//
+//		User user = new User();
+//		user.setEmail(employee.getEmail());
+//		user.setUsername(employee.getEmail());
+//		user.setPassword(this.passwordEncoder.encode(employee.getPassword()));
+//		userRepository.save(user);
+//		employee.setPassword(this.passwordEncoder.encode(employee.getPassword()));
+//		return employeeRepository.save(employee);
+//
+//	}
+//
+//}

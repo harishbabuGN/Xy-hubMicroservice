@@ -1,0 +1,5 @@
+package com.example.XyhubHelpdesk.Entity;
+
+public class HelpDeskTicket {
+
+}

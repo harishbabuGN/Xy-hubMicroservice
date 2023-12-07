@@ -1,0 +1,5 @@
+package com.example.XyhubHelpdesk.StorageService;
+
+public class S3BucketStorageService {
+
+}

@@ -1,0 +1,13 @@
+package com.example.XyhubHelpdesk;
+
+import org.springframework.boot.SpringApplication;
+import org.springframework.boot.autoconfigure.SpringBootApplication;
+
+@SpringBootApplication
+public class XyhubHelpdeskApplication {
+
+	public static void main(String[] args) {
+		SpringApplication.run(XyhubHelpdeskApplication.class, args);
+	}
+
+}

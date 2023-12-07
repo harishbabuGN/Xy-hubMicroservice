@@ -1,0 +1,9 @@
+package com.example.XyhubAuthentication.Repo;
+
+import org.springframework.data.jpa.repository.JpaRepository;
+
+import com.example.XyhubAuthentication.model.User;
+
+public interface UserDao extends JpaRepository<User, Integer> {
+
+}

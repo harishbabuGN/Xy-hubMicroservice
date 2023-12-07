@@ -1,0 +1,14 @@
+package com.example.XyhubEmployee.Repository;
+
+import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
+
+import com.example.XyhubEmployee.admin.model.XyhubUserDetails;
+
+public interface UserRepository  extends JpaRepository<XyhubUserDetails, String>{
+	
+	@Query(value="SELECT * FROM user ud WHERE ud.username = :username", nativeQuery=true)
+	XyhubUserDetails loadUserByUsername(@Param("username") String username);
+
+}

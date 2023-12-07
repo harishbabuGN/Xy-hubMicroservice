@@ -1,0 +1,13 @@
+package com.example.XyhubEmployee;
+
+import org.springframework.boot.SpringApplication;
+import org.springframework.boot.autoconfigure.SpringBootApplication;
+
+@SpringBootApplication
+public class XyhubEmployeeApplication {
+
+	public static void main(String[] args) {
+		SpringApplication.run(XyhubEmployeeApplication.class, args);
+	}
+
+}

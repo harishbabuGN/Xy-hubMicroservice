@@ -1,0 +1,5 @@
+package com.example.XyhubAuthentication.config;
+
+public class RestClientConfig {
+
+}

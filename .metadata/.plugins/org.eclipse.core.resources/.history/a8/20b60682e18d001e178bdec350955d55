@@ -1,0 +1,5 @@
+package com.example.XyhubAuthentication.ZuulFilter;
+
+public class ErrorFilter {
+
+}
